@@ -19,7 +19,7 @@ const variantRoutes = require("./routes/variantRoutes");
 const { connectToDB } = require("./database/db");
 const bodyParser = require('body-parser');
 const { handleStripeWebhook } = require("./controllers/Checkout");
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+
 const PORT = process.env.PORT || 8000;
 
 
@@ -27,19 +27,30 @@ const server = express();
 connectToDB();
 
 
-server.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.error("Blocked by CORS:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  exposedHeaders: ['X-Total-Count'],
-  methods: ['GET', 'POST', 'PATCH', 'DELETE']
-}));
+// Normalize and log allowed origins
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+  .split(",")
+  .map(origin => origin.trim().replace(/\/$/, "")); // Remove trailing slash
+
+console.log("✅ Allowed Origins:", allowedOrigins); // <-- this will show up in Render logs
+
+server.use(
+  cors({
+    origin: (origin, callback) => {
+      const normalizedOrigin = origin?.replace(/\/$/, ""); // normalize incoming origin
+      if (!origin || allowedOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+      } else {
+        console.error("❌ Blocked by CORS:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    exposedHeaders: ["X-Total-Count"],
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+  })
+);
+
 server.post("/webhook", bodyParser.raw({ type: 'application/json' }), handleStripeWebhook);
 
 
