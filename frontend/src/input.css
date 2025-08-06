@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@import url('https://fonts.googleapis.com/css2?family=Bona+Nova+SC:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@400..900&family=DM+Serif+Display:ital@0;1&family=Marcellus+SC&display=swap');
+
+.bona-nova-sc-bold {
+    font-family: "Bona Nova SC", serif;
+    font-weight: 700;
+    font-style: normal;
+  }
+
+body, html {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+   overflow-x: hidden;
+}
