@@ -72,9 +72,7 @@ const FeaturedProductGrid = () => {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     {product.description?.slice(0, 60)}...
                   </Typography>
-                  <Typography variant="body1" fontWeight="bold" color="primary">
-                    {price ? `AED ${price.toFixed(2)}` : "Price N/A"}
-                  </Typography>
+                 
                   <Button
                     variant="outlined"
                     size="small"

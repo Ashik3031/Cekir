@@ -14,6 +14,7 @@ const productSchema = new mongoose.Schema({
   options: [String],
   images: [String],
   price: { type: Number, required: true },  
+  compareAtPrice: {type: Number,default: null,},
   stock: { type: Number, required: true },  
   isActive: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },

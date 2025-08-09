@@ -32,7 +32,7 @@ const NewArrivalCategory = () => {
           <div
             key={index}
             className="cursor-pointer group"
-            onClick={() => navigate(`/new-arrivals/${category.name}`)}
+            onClick={() => navigate(`/categories?categoryId=${category._id}`)}
           >
             {/* Image */}
             <div className="aspect-[3/4] overflow-hidden">

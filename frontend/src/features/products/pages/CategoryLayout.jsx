@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { axiosi } from "../../../config/axios";
 import { Navbar } from "../../navigation/components/Navbar";
+
 import {
   Card,
   CardMedia,
@@ -113,6 +114,15 @@ const CategoryLayout = () => {
   const isTablet = useMediaQuery(theme.breakpoints.down("lg"));
   const [searchParams] = useSearchParams();
 
+  // FIX: sanitize wishlist items once
+  const wishlistSafe = useMemo(
+    () =>
+      Array.isArray(wishlistItems)
+        ? wishlistItems.filter((w) => w && w.product && w.product._id)
+        : [],
+    [wishlistItems]
+  );
+
   const sortOptions = [
     { value: "featured", label: "Recommended" },
     { value: "price_asc", label: "Price: Low to High" },
@@ -126,7 +136,7 @@ const CategoryLayout = () => {
     const fetchCategories = async () => {
       try {
         const response = await axiosi.get("/categories");
-        setCategories(response.data);
+        setCategories(response.data || []);
       } catch (error) {
         console.error("Error fetching categories:", error);
       }
@@ -140,7 +150,7 @@ const CategoryLayout = () => {
 
     const categoryId = searchParams.get("categoryId");
     if (categoryId) {
-      const selected = categories.find((cat) => cat._id === categoryId);
+      const selected = categories.find((cat) => cat?._id === categoryId);
       if (selected) {
         setSelectedCategoryId(categoryId);
         setSelectedSubCategoryId("ALL");
@@ -149,7 +159,7 @@ const CategoryLayout = () => {
         return;
       }
     }
-    
+
     setSelectedCategoryId("ALL");
     setSelectedSubCategoryId("ALL");
     setSubCategories([]);
@@ -160,8 +170,9 @@ const CategoryLayout = () => {
     setFetchStatus("pending");
     try {
       const res = await axiosi.get("/products");
-      setProducts(res.data);
-      setAllProducts(res.data);
+      const data = Array.isArray(res.data) ? res.data.filter(Boolean) : [];
+      setProducts(data);
+      setAllProducts(data);
       setFetchStatus("fulfilled");
     } catch (err) {
       console.error("Failed to fetch all products", err);
@@ -172,10 +183,11 @@ const CategoryLayout = () => {
   const fetchProductsByCategory = async (categoryName) => {
     setFetchStatus("pending");
     try {
-      const encoded = encodeURIComponent(categoryName);
+      const encoded = encodeURIComponent(categoryName ?? "");
       const res = await axiosi.get(`/products/latest-products/${encoded}`);
-      setProducts(res.data);
-      setAllProducts(res.data);
+      const data = Array.isArray(res.data) ? res.data.filter(Boolean) : [];
+      setProducts(data);
+      setAllProducts(data);
       setFetchStatus("fulfilled");
     } catch (err) {
       console.error("Error fetching category products", err);
@@ -186,11 +198,12 @@ const CategoryLayout = () => {
   const fetchProductsBySubCategory = async (categoryName, subCategoryName) => {
     setFetchStatus("pending");
     try {
-      const cat = encodeURIComponent(categoryName);
-      const sub = encodeURIComponent(subCategoryName);
+      const cat = encodeURIComponent(categoryName ?? "");
+      const sub = encodeURIComponent(subCategoryName ?? "");
       const res = await axiosi.get(`/products/category/${cat}/subcategory/${sub}`);
-      setProducts(res.data);
-      setAllProducts(res.data);
+      const data = Array.isArray(res.data) ? res.data.filter(Boolean) : [];
+      setProducts(data);
+      setAllProducts(data);
       setFetchStatus("fulfilled");
     } catch (err) {
       console.error("Error fetching subcategory products", err);
@@ -200,68 +213,82 @@ const CategoryLayout = () => {
 
   // Advanced filtering logic
   const filteredProducts = useMemo(() => {
-    let filtered = [...allProducts];
+    if (!allProducts.length) return [];
 
-    // Search filter
-    if (filters.search) {
-      const query = filters.search.toLowerCase();
-      filtered = filtered.filter(product =>
-        product.name?.toLowerCase().includes(query) ||
-        product.title?.toLowerCase().includes(query)
+    let result = allProducts.filter(Boolean); // FIX: drop nulls early
+
+    // Step 1: Text search
+    if (filters.search.trim()) {
+      const query = filters.search.trim().toLowerCase();
+      result = result.filter((product) =>
+        (product?.name || "").toLowerCase().includes(query) ||
+        (product?.title || "").toLowerCase().includes(query)
       );
     }
 
-    // Price range filter
-    filtered = filtered.filter(product => {
-      const price = product.price || product.defaultPrice || 0;
-      return price >= filters.priceRange[0] && price <= filters.priceRange[1];
+    // Step 2: Price filter
+    const [minPrice, maxPrice] = filters.priceRange;
+    result = result.filter((product) => {
+      const price = product?.price ?? product?.defaultPrice ?? 0;
+      return price >= minPrice && price <= maxPrice;
     });
 
-    // Availability filter
+    // Step 3: Stock filter
     if (filters.availability === "inStock") {
-      filtered = filtered.filter(product => (product.stock || product.defaultStock || 0) > 0);
+      result = result.filter(
+        (product) => (product?.stock ?? product?.defaultStock ?? 0) > 0
+      );
     } else if (filters.availability === "outOfStock") {
-      filtered = filtered.filter(product => (product.stock || product.defaultStock || 0) === 0);
+      result = result.filter(
+        (product) => (product?.stock ?? product?.defaultStock ?? 0) === 0
+      );
     }
 
-    // Rating filter
+    // Step 4: Rating filter
     if (filters.rating > 0) {
-      filtered = filtered.filter(product => (product.rating || 0) >= filters.rating);
+      result = result.filter((product) => (product?.rating ?? 0) >= filters.rating);
     }
 
-    // Featured filter
+    // Step 5: Feature filters
     if (filters.featured) {
-      filtered = filtered.filter(product => product.isFeatured);
+      result = result.filter((product) => product?.isFeatured === true);
     }
-
-    // Free shipping filter (assuming products have a freeShipping field)
     if (filters.freeShipping) {
-      filtered = filtered.filter(product => product.freeShipping);
+      result = result.filter((product) => product?.freeShipping === true);
     }
 
-    // Sort products
-    filtered.sort((a, b) => {
+    // Step 6: Sort
+    result.sort((a, b) => {
+      const priceA = a?.price ?? a?.defaultPrice ?? 0;
+      const priceB = b?.price ?? b?.defaultPrice ?? 0;
+      const dateA = new Date(a?.createdAt ?? 0);
+      const dateB = new Date(b?.createdAt ?? 0);
+      const ratingA = a?.rating ?? 0;
+      const ratingB = b?.rating ?? 0;
+      const salesA = a?.sales ?? 0;
+      const salesB = b?.sales ?? 0;
+
       switch (sort) {
         case "price_asc":
-          return (a.price || a.defaultPrice || 0) - (b.price || b.defaultPrice || 0);
+          return priceA - priceB;
         case "price_desc":
-          return (b.price || b.defaultPrice || 0) - (a.price || a.defaultPrice || 0);
+          return priceB - priceA;
         case "newest":
-          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+          return dateB - dateA;
         case "name_asc":
-          return (a.name || a.title || "").localeCompare(b.name || b.title || "");
+          return (a?.name || "").localeCompare(b?.name || "");
         case "name_desc":
-          return (b.name || b.title || "").localeCompare(a.name || a.title || "");
+          return (b?.name || "").localeCompare(a?.name || "");
         case "rating":
-          return (b.rating || 0) - (a.rating || 0);
+          return ratingB - ratingA;
         case "popular":
-          return (b.sales || 0) - (a.sales || 0);
-        default: // featured
-          return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+          return salesB - salesA;
+        default:
+          return (b?.isFeatured ? 1 : 0) - (a?.isFeatured ? 1 : 0);
       }
     });
 
-    return filtered;
+    return result;
   }, [allProducts, filters, sort]);
 
   // Pagination
@@ -280,19 +307,19 @@ const CategoryLayout = () => {
   const handleCategoryChange = (categoryId, categoryName) => {
     setSelectedCategoryId(categoryId);
     setSelectedSubCategoryId("ALL");
-    setFilters({...filters, categories: [], subcategories: []});
+    setFilters({ ...filters, categories: [], subcategories: [] });
     setCurrentPage(1);
 
     if (categoryId === "ALL") {
       setSubCategories([]);
       fetchAllProducts();
     } else {
-      const selected = categories.find((cat) => cat._id === categoryId);
+      const selected = categories.find((cat) => cat?._id === categoryId);
       setSubCategories(selected?.subCategory || []);
       fetchProductsByCategory(categoryName);
     }
-    
-    if(categoryId === "ALL") {
+
+    if (categoryId === "ALL") {
       navigate(`/categories`);
     } else {
       navigate(`/categories?categoryId=${categoryId}`);
@@ -302,7 +329,7 @@ const CategoryLayout = () => {
   const handleSubCategoryChange = (subCategoryId, subCategoryName) => {
     setSelectedSubCategoryId(subCategoryId);
     setCurrentPage(1);
-    const selected = categories.find((cat) => cat._id === selectedCategoryId);
+    const selected = categories.find((cat) => cat?._id === selectedCategoryId);
     if (subCategoryId === "ALL") {
       fetchProductsByCategory(selected?.name);
     } else {
@@ -310,18 +337,24 @@ const CategoryLayout = () => {
     }
   };
 
+  // FIX: null-safe wishlist handler
   const handleAddRemoveFromWishlist = (e, productId) => {
     e.stopPropagation();
-    const isWishlisted = wishlistItems.some((item) => item.product._id === productId);
+    if (!productId) return;
+
+    const isWishlisted = wishlistSafe.some((item) => item?.product?._id === productId);
+
     if (!isWishlisted) {
       if (!loggedInUser) {
         navigate("/login");
       } else {
-        dispatch(createWishlistItemAsync({ user: loggedInUser._id, product: productId }));
+        dispatch(
+          createWishlistItemAsync({ user: loggedInUser?._id, product: productId })
+        );
       }
     } else {
-      const item = wishlistItems.find((item) => item.product._id === productId);
-      if (item) dispatch(deleteWishlistItemByIdAsync(item._id));
+      const item = wishlistSafe.find((item) => item?.product?._id === productId);
+      if (item?._id) dispatch(deleteWishlistItemByIdAsync(item._id));
     }
   };
 
@@ -352,13 +385,13 @@ const CategoryLayout = () => {
   }, [filters]);
 
   const FilterSidebar = () => (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         width: isMobile ? "100vw" : "280px",
         height: "100vh",
         bgcolor: "white",
         borderRight: "1px solid #e5e5e5",
-        overflow: "auto"
+        overflow: "auto",
       }}
     >
       <Box sx={{ p: 3 }}>
@@ -367,11 +400,7 @@ const CategoryLayout = () => {
           <Typography variant="h6" sx={{ fontWeight: 400, fontSize: "16px" }}>
             Filter & Sort
           </Typography>
-          <IconButton 
-            size="small" 
-            onClick={() => setIsFilterOpen(false)}
-            sx={{ display: { md: "none" } }}
-          >
+          <IconButton size="small" onClick={() => setIsFilterOpen(false)} sx={{ display: { md: "none" } }}>
             <CloseIcon />
           </IconButton>
         </Stack>
@@ -383,7 +412,7 @@ const CategoryLayout = () => {
             size="small"
             placeholder="Search products"
             value={filters.search}
-            onChange={(e) => setFilters({...filters, search: e.target.value})}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -415,15 +444,12 @@ const CategoryLayout = () => {
           <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 400, fontSize: "14px" }}>
             Sort by
           </Typography>
-          <RadioGroup
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
+          <RadioGroup value={sort} onChange={(e) => setSort(e.target.value)}>
             {sortOptions.map((option) => (
-              <FormControlLabel 
+              <FormControlLabel
                 key={option.value}
-                value={option.value} 
-                control={<Radio size="small" sx={{ color: "#666" }} />} 
+                value={option.value}
+                control={<Radio size="small" sx={{ color: "#666" }} />}
                 label={<Typography sx={{ fontSize: "14px" }}>{option.label}</Typography>}
                 sx={{ mb: 0.5 }}
               />
@@ -443,7 +469,7 @@ const CategoryLayout = () => {
           </Typography>
           <Slider
             value={filters.priceRange}
-            onChange={(e, newValue) => setFilters({...filters, priceRange: newValue})}
+            onChange={(e, newValue) => setFilters({ ...filters, priceRange: newValue })}
             min={0}
             max={50000}
             step={500}
@@ -467,35 +493,6 @@ const CategoryLayout = () => {
 
         <Divider sx={{ my: 3, bgcolor: "#e5e5e5" }} />
 
-        {/* Availability */}
-        <Box mb={4}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 400, fontSize: "14px" }}>
-            Availability
-          </Typography>
-          <RadioGroup
-            value={filters.availability}
-            onChange={(e) => setFilters({...filters, availability: e.target.value})}
-          >
-            <FormControlLabel 
-              value="all" 
-              control={<Radio size="small" sx={{ color: "#666" }} />} 
-              label={<Typography sx={{ fontSize: "14px" }}>All</Typography>}
-            />
-            <FormControlLabel 
-              value="inStock" 
-              control={<Radio size="small" sx={{ color: "#666" }} />} 
-              label={<Typography sx={{ fontSize: "14px" }}>In stock</Typography>}
-            />
-            <FormControlLabel 
-              value="outOfStock" 
-              control={<Radio size="small" sx={{ color: "#666" }} />} 
-              label={<Typography sx={{ fontSize: "14px" }}>Out of stock</Typography>}
-            />
-          </RadioGroup>
-        </Box>
-
-        <Divider sx={{ my: 3, bgcolor: "#e5e5e5" }} />
-
         {/* Features */}
         <Box mb={4}>
           <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 400, fontSize: "14px" }}>
@@ -506,7 +503,7 @@ const CategoryLayout = () => {
               control={
                 <Checkbox
                   checked={filters.featured}
-                  onChange={(e) => setFilters({...filters, featured: e.target.checked})}
+                  onChange={(e) => setFilters({ ...filters, featured: e.target.checked })}
                   size="small"
                   sx={{ color: "#666" }}
                 />
@@ -517,7 +514,7 @@ const CategoryLayout = () => {
               control={
                 <Checkbox
                   checked={filters.freeShipping}
-                  onChange={(e) => setFilters({...filters, freeShipping: e.target.checked})}
+                  onChange={(e) => setFilters({ ...filters, freeShipping: e.target.checked })}
                   size="small"
                   sx={{ color: "#666" }}
                 />
@@ -553,16 +550,20 @@ const CategoryLayout = () => {
   );
 
   const ProductCard = ({ product, index }) => {
-    const isWishlisted = wishlistItems.some((item) => item.product._id === product._id);
-    const price = product.price || product.defaultPrice || 0;
-    const stock = product.stock || product.defaultStock || 0;
+  // compute first, no hooks
+  const productId = product?._id;
+  const isWishlisted = wishlistSafe.some(
+    (item) => item?.product?._id && productId && item.product._id === productId
+  );
+
+  // safe early return AFTER any hooks (we don't have hooks here now)
+  if (!product) return null;
+
+  const price = product?.price || product?.defaultPrice || 0;
+  const stock = product?.stock || product?.defaultStock || 0;
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
         <Box
           sx={{
             cursor: "pointer",
@@ -570,21 +571,21 @@ const CategoryLayout = () => {
               opacity: 1,
             },
           }}
-          onClick={() => navigate(`/product-details/${product._id}`)}
+          onClick={() => product?._id && navigate(`/product-details/${product._id}`)} // FIX
         >
           {/* Product Image */}
           <Box sx={{ position: "relative", mb: 2, bgcolor: "#f5f5f5" }}>
             <CardMedia
               component="img"
               height="400"
-              image={product.images?.[0] || "/placeholder.jpg"}
-              alt={product.title || product.name || "Product"}
-              sx={{ 
+              image={product?.images?.[0] || "/placeholder.jpg"}
+              alt={product?.title || product?.name || "Product"}
+              sx={{
                 objectFit: "cover",
                 aspectRatio: "3/4",
               }}
             />
-            
+
             {/* Wishlist Button */}
             <IconButton
               className="product-overlay"
@@ -595,11 +596,12 @@ const CategoryLayout = () => {
                 bgcolor: "white",
                 opacity: 0,
                 transition: "opacity 0.3s ease",
-                "&:hover": { 
+                "&:hover": {
                   bgcolor: "white",
                 },
               }}
-              onClick={(e) => handleAddRemoveFromWishlist(e, product._id)}
+              onClick={(e) => handleAddRemoveFromWishlist(e, product?._id)} // FIX
+              disabled={!product?._id} // FIX
             >
               {isWishlisted ? (
                 <FavoriteIcon sx={{ color: "#e91e63", fontSize: 20 }} />
@@ -620,9 +622,7 @@ const CategoryLayout = () => {
                   py: 0.5,
                 }}
               >
-                <Typography sx={{ fontSize: "11px", fontWeight: 500 }}>
-                  Out of stock
-                </Typography>
+                <Typography sx={{ fontSize: "11px", fontWeight: 500 }}>Out of stock</Typography>
               </Box>
             )}
           </Box>
@@ -641,7 +641,7 @@ const CategoryLayout = () => {
                 color: "#000",
               }}
             >
-              {product.title || product.name || "Untitled Product"}
+              {product?.title || product?.name || "Untitled Product"}
             </Typography>
 
             <Typography
@@ -655,17 +655,10 @@ const CategoryLayout = () => {
                 whiteSpace: "nowrap",
               }}
             >
-              {product.description || ""}
+              {product?.description || ""}
             </Typography>
 
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                fontWeight: 500,
-                color: "#000",
-                fontSize: "14px",
-              }}
-            >
+            <Typography variant="body2" sx={{ fontWeight: 500, color: "#000", fontSize: "14px" }}>
               ₹{price.toLocaleString()}
             </Typography>
           </Box>
@@ -677,7 +670,7 @@ const CategoryLayout = () => {
   return (
     <>
       <Navbar />
-      
+
       {/* Filter Drawer */}
       <Drawer
         anchor="left"
@@ -719,10 +712,10 @@ const CategoryLayout = () => {
       </Fab>
 
       {/* Main Content */}
-      <Box 
-        sx={{ 
-          pt: "80px", 
-          minHeight: "100vh", 
+      <Box
+        sx={{
+          pt: "80px",
+          minHeight: "100vh",
           bgcolor: "white",
           marginLeft: isFilterOpen && !isMobile ? "280px" : 0,
           transition: "margin 0.3s ease",
@@ -732,17 +725,16 @@ const CategoryLayout = () => {
           {/* Header */}
           <Box sx={{ mb: 4 }}>
             <Typography variant="h4" sx={{ fontWeight: 300, mb: 2, fontSize: { xs: "24px", md: "32px" } }}>
-              {selectedCategoryId === "ALL" 
-                ? "All Products" 
-                : categories.find(cat => cat._id === selectedCategoryId)?.name || "Products"
-              }
+              {selectedCategoryId === "ALL"
+                ? "All Products"
+                : categories.find((cat) => cat?._id === selectedCategoryId)?.name || "Products"}
             </Typography>
-            
+
             {/* Category Pills */}
-            <Stack 
-              direction="row" 
-              spacing={1} 
-              sx={{ 
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
                 overflowX: "auto",
                 pb: 1,
                 "&::-webkit-scrollbar": { display: "none" },
@@ -765,19 +757,19 @@ const CategoryLayout = () => {
               />
               {categories.map((cat) => (
                 <Chip
-                  key={cat._id}
-                  label={cat.name}
-                  variant={selectedCategoryId === cat._id ? "filled" : "outlined"}
-                  onClick={() => handleCategoryChange(cat._id, cat.name)}
+                  key={cat?._id || cat?.name}
+                  label={cat?.name}
+                  variant={selectedCategoryId === cat?._id ? "filled" : "outlined"}
+                  onClick={() => handleCategoryChange(cat?._id, cat?.name)}
                   sx={{
                     borderRadius: 16,
-                    bgcolor: selectedCategoryId === cat._id ? "#000" : "transparent",
-                    color: selectedCategoryId === cat._id ? "white" : "#000",
+                    bgcolor: selectedCategoryId === cat?._id ? "#000" : "transparent",
+                    color: selectedCategoryId === cat?._id ? "white" : "#000",
                     borderColor: "#e5e5e5",
                     fontSize: "12px",
                     whiteSpace: "nowrap",
                     "&:hover": {
-                      bgcolor: selectedCategoryId === cat._id ? "#333" : "#f5f5f5",
+                      bgcolor: selectedCategoryId === cat?._id ? "#333" : "#f5f5f5",
                     },
                   }}
                 />
@@ -786,10 +778,10 @@ const CategoryLayout = () => {
 
             {/* Subcategories */}
             {selectedCategoryId !== "ALL" && subCategories.length > 0 && (
-              <Stack 
-                direction="row" 
-                spacing={1} 
-                sx={{ 
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
                   mt: 2,
                   overflowX: "auto",
                   pb: 1,
@@ -810,14 +802,14 @@ const CategoryLayout = () => {
                 />
                 {subCategories.map((sub) => (
                   <Chip
-                    key={sub._id}
-                    label={sub.name}
-                    variant={selectedSubCategoryId === sub._id ? "filled" : "outlined"}
-                    onClick={() => handleSubCategoryChange(sub._id, sub.name)}
+                    key={sub?._id || sub?.name}
+                    label={sub?.name}
+                    variant={selectedSubCategoryId === sub?._id ? "filled" : "outlined"}
+                    onClick={() => handleSubCategoryChange(sub?._id, sub?.name)}
                     size="small"
                     sx={{
-                      bgcolor: selectedSubCategoryId === sub._id ? "#000" : "transparent",
-                      color: selectedSubCategoryId === sub._id ? "white" : "#666",
+                      bgcolor: selectedSubCategoryId === sub?._id ? "#000" : "transparent",
+                      color: selectedSubCategoryId === sub?._id ? "white" : "#666",
                       borderColor: "#e5e5e5",
                       fontSize: "11px",
                       whiteSpace: "nowrap",
@@ -838,14 +830,13 @@ const CategoryLayout = () => {
             <Typography variant="body2" sx={{ color: "#666", fontSize: "14px" }}>
               {filteredProducts.length} items
             </Typography>
-            
+
             <Stack direction="row" spacing={2} alignItems="center">
-              {/* Filter Button for Desktop */}
               <Button
                 variant="text"
                 startIcon={<TuneIcon />}
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                sx={{ 
+                sx={{
                   display: { xs: "none", md: "flex" },
                   color: "#000",
                   textTransform: "none",
@@ -854,31 +845,6 @@ const CategoryLayout = () => {
               >
                 Filter & Sort
               </Button>
-
-              {/* View Toggle */}
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={(e, newMode) => newMode && setViewMode(newMode)}
-                size="small"
-                sx={{
-                  "& .MuiToggleButton-root": {
-                    border: "1px solid #e5e5e5",
-                    color: "#666",
-                    "&.Mui-selected": {
-                      bgcolor: "#000",
-                      color: "white",
-                    },
-                  },
-                }}
-              >
-                <ToggleButton value="grid">
-                  <GridViewIcon fontSize="small" />
-                </ToggleButton>
-                <ToggleButton value="list">
-                  <ViewListIcon fontSize="small" />
-                </ToggleButton>
-              </ToggleButtonGroup>
             </Stack>
           </Stack>
 
@@ -886,14 +852,7 @@ const CategoryLayout = () => {
           {fetchStatus === "pending" ? (
             <Grid container spacing={2}>
               {[...Array(12)].map((_, idx) => (
-                <Grid 
-                  item 
-                  xs={6} 
-                  sm={4} 
-                  md={viewMode === "list" ? 12 : 3} 
-                  lg={viewMode === "list" ? 12 : 3} 
-                  key={idx}
-                >
+                <Grid item xs={6} sm={4} md={viewMode === "list" ? 12 : 3} lg={viewMode === "list" ? 12 : 3} key={idx}>
                   <Box>
                     <Skeleton variant="rectangular" height={400} sx={{ bgcolor: "#f5f5f5" }} />
                     <Box sx={{ mt: 2 }}>
@@ -907,11 +866,9 @@ const CategoryLayout = () => {
             </Grid>
           ) : fetchStatus === "error" ? (
             <Box sx={{ textAlign: "center", py: 8 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: "#666" }}>
-                Something went wrong
-              </Typography>
-              <Button 
-                variant="outlined" 
+              <Typography variant="h6" sx={{ mb: 2, color: "#666" }}>Something went wrong</Typography>
+              <Button
+                variant="outlined"
                 onClick={fetchAllProducts}
                 sx={{
                   color: "#000",
@@ -930,26 +887,22 @@ const CategoryLayout = () => {
           ) : filteredProducts.length > 0 ? (
             <>
               <AnimatePresence mode="wait">
-                <motion.div
-                  key={viewMode}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
+                <motion.div key={viewMode} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
                   <Grid container spacing={2}>
-                    {paginatedProducts.map((product, index) => (
-                      <Grid
-                        item
-                        xs={6}
-                        sm={4}
-                        md={viewMode === "list" ? 12 : 3}
-                        lg={viewMode === "list" ? 12 : 3}
-                        key={product._id}
-                      >
-                        <ProductCard product={product} index={index} />
-                      </Grid>
-                    ))}
+                    {paginatedProducts
+                      .filter(Boolean) // FIX: skip nulls
+                      .map((product, index) => (
+                        <Grid
+                          item
+                          xs={6}
+                          sm={4}
+                          md={viewMode === "list" ? 12 : 3}
+                          lg={viewMode === "list" ? 12 : 3}
+                          key={product?._id || `p-${index}`} // FIX
+                        >
+                          <ProductCard product={product} index={index} />
+                        </Grid>
+                      ))}
                   </Grid>
                 </motion.div>
               </AnimatePresence>
@@ -979,16 +932,17 @@ const CategoryLayout = () => {
                       >
                         Previous
                       </Button>
-                      
+
                       {[...Array(Math.min(5, totalPages))].map((_, index) => {
-                        const pageNumber = currentPage <= 3 
-                          ? index + 1 
-                          : currentPage >= totalPages - 2 
-                            ? totalPages - 4 + index 
+                        const pageNumber =
+                          currentPage <= 3
+                            ? index + 1
+                            : currentPage >= totalPages - 2
+                            ? totalPages - 4 + index
                             : currentPage - 2 + index;
-                        
+
                         if (pageNumber > totalPages || pageNumber < 1) return null;
-                        
+
                         return (
                           <Button
                             key={pageNumber}
@@ -1010,7 +964,7 @@ const CategoryLayout = () => {
                           </Button>
                         );
                       })}
-                      
+
                       <Button
                         variant="outlined"
                         disabled={currentPage === totalPages}
@@ -1032,9 +986,9 @@ const CategoryLayout = () => {
                         Next
                       </Button>
                     </Stack>
-                    
+
                     <Typography variant="body2" sx={{ color: "#666", fontSize: "12px" }}>
-                      Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} products
+                      Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredProducts.length)} of {filteredProducts.length} products
                     </Typography>
                   </Stack>
                 </Box>
@@ -1042,12 +996,8 @@ const CategoryLayout = () => {
             </>
           ) : (
             <Box sx={{ textAlign: "center", py: 8 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: "#666", fontWeight: 300 }}>
-                No products found
-              </Typography>
-              <Typography variant="body2" sx={{ mb: 3, color: "#999" }}>
-                Try adjusting your search or filters
-              </Typography>
+              <Typography variant="h6" sx={{ mb: 2, color: "#666", fontWeight: 300 }}>No products found</Typography>
+              <Typography variant="body2" sx={{ mb: 3, color: "#999" }}>Try adjusting your search or filters</Typography>
               {activeFilterCount > 0 && (
                 <Button
                   variant="outlined"
@@ -1077,10 +1027,10 @@ const CategoryLayout = () => {
           maxWidth="md"
           fullWidth
           PaperProps={{
-            sx: { 
+            sx: {
               borderRadius: 0,
               bgcolor: "white",
-            }
+            },
           }}
         >
           {showQuickView && (
@@ -1089,8 +1039,8 @@ const CategoryLayout = () => {
                 {/* Product Image */}
                 <Box sx={{ flex: 1, position: "relative", bgcolor: "#f5f5f5" }}>
                   <img
-                    src={showQuickView.images?.[0] || "/placeholder.jpg"}
-                    alt={showQuickView.title || showQuickView.name}
+                    src={showQuickView?.images?.[0] || "/placeholder.jpg"}
+                    alt={showQuickView?.title || showQuickView?.name || "Product"}
                     style={{
                       width: "100%",
                       height: "500px",
@@ -1113,15 +1063,15 @@ const CategoryLayout = () => {
                 {/* Product Details */}
                 <Box sx={{ flex: 1, p: 4 }}>
                   <Typography variant="h5" sx={{ fontWeight: 300, mb: 2 }}>
-                    {showQuickView.title || showQuickView.name}
+                    {showQuickView?.title || showQuickView?.name}
                   </Typography>
-                  
+
                   <Typography variant="h6" sx={{ fontWeight: 500, mb: 3 }}>
-                    ₹{(showQuickView.price || showQuickView.defaultPrice || 0).toLocaleString()}
+                    ₹{(showQuickView?.price || showQuickView?.defaultPrice || 0).toLocaleString()}
                   </Typography>
 
                   <Typography variant="body2" sx={{ color: "#666", mb: 4, lineHeight: 1.6 }}>
-                    {showQuickView.description || "No description available"}
+                    {showQuickView?.description || "No description available"}
                   </Typography>
 
                   <Stack spacing={2}>
@@ -1131,7 +1081,7 @@ const CategoryLayout = () => {
                       fullWidth
                       onClick={() => {
                         setShowQuickView(null);
-                        navigate(`/product-details/${showQuickView._id}`);
+                        if (showQuickView?._id) navigate(`/product-details/${showQuickView._id}`); // FIX
                       }}
                       sx={{
                         bgcolor: "#000",
@@ -1146,17 +1096,20 @@ const CategoryLayout = () => {
                     >
                       View details
                     </Button>
-                    
+
                     <Button
                       variant="outlined"
                       size="large"
                       fullWidth
                       startIcon={
-                        wishlistItems.some(item => item.product._id === showQuickView._id) 
-                          ? <FavoriteIcon /> 
-                          : <FavoriteBorderIcon />
-                      }
-                      onClick={(e) => handleAddRemoveFromWishlist(e, showQuickView._id)}
+                        wishlistSafe.some((item) => item?.product?._id === showQuickView?._id) ? (
+                          <FavoriteIcon />
+                        ) : (
+                          <FavoriteBorderIcon />
+                        )
+                      } // FIX
+                      onClick={(e) => handleAddRemoveFromWishlist(e, showQuickView?._id)} // FIX
+                      disabled={!showQuickView?._id} // FIX
                       sx={{
                         color: "#000",
                         borderColor: "#000",
@@ -1168,10 +1121,9 @@ const CategoryLayout = () => {
                         },
                       }}
                     >
-                      {wishlistItems.some(item => item.product._id === showQuickView._id) 
-                        ? "Remove from favorites" 
-                        : "Add to favorites"
-                      }
+                      {wishlistSafe.some((item) => item?.product?._id === showQuickView?._id)
+                        ? "Remove from favorites"
+                        : "Add to favorites"}
                     </Button>
                   </Stack>
                 </Box>

@@ -18,19 +18,17 @@ exports.createProduct = async (req, res) => {
       variants = [],
       defaultImages = [],
       defaultPrice = 0,
+      defaultCompareAtPrice = null, // ✅ NEW: for discount price
       defaultStock = 0
     } = req.body;
 
-    // ✅ Validate required fields
     if (!name || !category) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // ✅ Generate unique product slug
     const baseSlug = slugify(name, { lower: true });
     const finalSlug = `${baseSlug}-${Date.now()}`;
 
-    // ✅ Create Product
     const product = await Product.create({
       name,
       slug: finalSlug,
@@ -39,28 +37,28 @@ exports.createProduct = async (req, res) => {
       category,
       tags,
       options,
-      price: defaultPrice,   
-      stock: defaultStock,   
+      price: defaultPrice,
+      compareAtPrice: defaultCompareAtPrice, // ✅ NEW
+      stock: defaultStock,
       images: defaultImages.slice(0, 4)
     });
 
     let createdVariants = [];
+
     if (Array.isArray(variants) && variants.length > 0) {
       createdVariants = await Promise.all(
         variants.map(async (v, i) => {
           const attrs = v.attributes || {};
-          if (!attrs || Object.keys(attrs).length === 0) {
-    return null; // ✅ Skip invalid variant
-  }
+          if (!attrs || Object.keys(attrs).length === 0) return null;
+
           const valuesArr = Object.values(attrs);
           const values = valuesArr.join("-").toLowerCase();
 
-          // ✅ Ensure unique slug & SKU
           const variantSlug = `${finalSlug}-${values || i}-${Date.now()}`;
           const sku = `${finalSlug.toUpperCase()}-${values.toUpperCase().replace(/\s+/g, "-")}-${Date.now()}`;
 
-          // ✅ Validate price & stock
           const price = !isNaN(parseFloat(v.price)) ? parseFloat(v.price) : parseFloat(defaultPrice);
+          const compareAtPrice = !isNaN(parseFloat(v.compareAtPrice)) ? parseFloat(v.compareAtPrice) : null; // ✅ NEW
           const stock = !isNaN(parseInt(v.stock)) ? parseInt(v.stock) : parseInt(defaultStock);
 
           return Variant.create({
@@ -69,6 +67,7 @@ exports.createProduct = async (req, res) => {
             slug: variantSlug,
             sku,
             price,
+            compareAtPrice, // ✅ NEW
             stock,
             images: Array.isArray(v.images) ? v.images.slice(0, 4) : []
           });
@@ -87,6 +86,7 @@ exports.createProduct = async (req, res) => {
     });
   }
 };
+
 
 exports.getAll = async (req, res) => {
   try {
@@ -226,6 +226,7 @@ exports.updateById = async (req, res) => {
       name,
       brand,
       price,
+      compareAtPrice, // ✅ NEW
       stock,
       category,
       subCategory,
@@ -241,11 +242,12 @@ exports.updateById = async (req, res) => {
     const product = await Product.findById(_id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
-    // Update main fields
+    // Update main product fields
     product.name = name;
     product.slug = slugify(name);
     product.brand = brand;
     product.price = price;
+    product.compareAtPrice = compareAtPrice || null; // ✅ NEW
     product.stock = stock;
     product.category = category;
     product.subCategory = subCategory;
@@ -259,7 +261,6 @@ exports.updateById = async (req, res) => {
     await product.save();
 
     const variantArray = JSON.parse(variants);
-
     const existingVariants = await Variant.find({ product: _id });
     const updatedVariantIds = [];
 
@@ -270,6 +271,7 @@ exports.updateById = async (req, res) => {
         if (existing) {
           existing.optionValues = v.optionValues;
           existing.price = v.price;
+          existing.compareAtPrice = v.compareAtPrice || null; // ✅ NEW
           existing.stock = v.stock;
           existing.images = v.images;
           existing.slug = slugify(`${product.name}-${v.optionValues?.Color || ''}-${v.optionValues?.Size || ''}`);
@@ -283,6 +285,7 @@ exports.updateById = async (req, res) => {
           product: product._id,
           optionValues: v.optionValues,
           price: v.price,
+          compareAtPrice: v.compareAtPrice || null, // ✅ NEW
           stock: v.stock,
           images: v.images,
           slug: slugify(`${product.name}-${v.optionValues?.Color || ''}-${v.optionValues?.Size || ''}`),
@@ -307,6 +310,7 @@ exports.updateById = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
 
 
 // exports.updateById = async (req, res) => {

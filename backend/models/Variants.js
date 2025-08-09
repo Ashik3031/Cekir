@@ -13,7 +13,10 @@ const variantSchema = new mongoose.Schema({
   sku: { type: String, required: true, unique: true },
   slug: { type: String, required: true, unique: true },
   price: { type: Number, required: true },
-  compareAtPrice: Number,
+  compareAtPrice: {
+  type: Number,
+  default: null,
+},
   stock: { type: Number, required: true },
   images: [String],
   isActive: { type: Boolean, default: true },
