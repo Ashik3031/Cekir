@@ -20,7 +20,7 @@ const { connectToDB } = require("./database/db");
 const bodyParser = require('body-parser');
 const { handleStripeWebhook } = require("./controllers/Checkout");
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 4001;
 
 
 const server = express();
