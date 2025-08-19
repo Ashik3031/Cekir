@@ -61,7 +61,7 @@ const ProductFeatured = () => {
   return (
     <section className="px-4 md:px-16 py-12 bg-gray-50">
       <h2 className="text-3xl font-serif text-center mb-10 tracking-wide text-gray-800">
-        OUR PRODUCTS
+        Prayer Rugs
       </h2>
 
       {/* Category Filters */}
