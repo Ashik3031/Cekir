@@ -726,7 +726,7 @@ const CategoryLayout = () => {
           <Box sx={{ mb: 4 }}>
             <Typography variant="h4" sx={{ fontWeight: 300, mb: 2, fontSize: { xs: "24px", md: "32px" } }}>
               {selectedCategoryId === "ALL"
-                ? "All Products"
+                ? "prayer Rugs"
                 : categories.find((cat) => cat?._id === selectedCategoryId)?.name || "Products"}
             </Typography>
 

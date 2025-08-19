@@ -156,8 +156,8 @@ const AboutUs = () => {
                 <div className="w-full h-full bg-gradient-to-br from-emerald-800 to-emerald-600 rounded-2xl flex items-center justify-center">
                   <div className="text-white text-center space-y-4">
                     <div className="text-6xl">🕌</div>
-                    <p className="text-xl font-light">Handcrafted with Love</p>
-                    <p className="text-emerald-200 font-light">Since 2010</p>
+                    <p className="text-xl font-light">Made with Love</p>
+                    <p className="text-emerald-200 font-light">Since 1998</p>
                   </div>
                 </div>
               </div>

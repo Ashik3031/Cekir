@@ -94,21 +94,30 @@ export const Navbar = () => {
   };
 
   return (
-    <header
+   <header
       className={`${isHome ? "fixed" : "relative"} top-0 left-0 w-full z-50 transition-all duration-300 ${bgClass}`}
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-12 py-4">
         {/* Logo */}
         <div className="w-full flex justify-between items-center">
-          <Link to={user?.isAdmin ? "/admin-dashboard" : "/"} className="block">
-            <img
-              src="https://res.cloudinary.com/dxq0nrirt/image/upload/f_auto,q_auto,w_200/cekir_amhio0.ai"
-              alt="CEKIR"
-              className={`h-20 sm:h-24 md:h-28 w-auto w-auto ${isTransparent ? "" : ""}`}
-            />
-          </Link>
-
+          <div className="flex items-center gap-3">
+            <Link to={user?.isAdmin ? "/admin-dashboard" : "/"} className="block">
+              <img
+                src="https://res.cloudinary.com/dxq0nrirt/image/upload/f_auto,q_auto,w_200/cekir_amhio0.ai"
+                alt="CEKIR"
+                className={`h-20 sm:h-24 md:h-28 w-auto ${isTransparent ? "" : ""}`}
+              />
+            </Link>
+            <div className="flex flex-col justify-center">
+              <span className="text-[#3e499c] font-bold text-lg sm:text-xl md:text-2xl tracking-wide" 
+                    style={{ fontFamily: "'Playfair Display', serif" }}>
+                Türkiye
+              </span>
+            </div>
+          </div>
+          
+          {/* Mobile Logo */}
           {/* Desktop Menu */}
           <nav className="hidden lg:flex gap-6 text-sm font-medium uppercase items-center">
             {!user?.isAdmin ? (
