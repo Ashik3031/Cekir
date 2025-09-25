@@ -81,8 +81,8 @@ exports.createCheckoutSession = async (req, res) => {
       payment_method_types: ["card"],
       line_items: lineItems,
       mode: "payment",
-      success_url: `https://barosatrendz.ae/payment-processing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: "https://barosatrendz.ae/cart",
+      success_url: `https://cekirbazaar.com/payment-processing?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: "https://cekirbazaar.com/cart",
       metadata: {
         pending_order_id: pendingOrder._id.toString(), // Store reference to pending order
       },

@@ -24,6 +24,7 @@ const initialState = {
   errors: null,
   successMessage: null,
   featuredProducts: [],
+  productsByCategory: [],
 };
 
 
@@ -113,6 +114,36 @@ export const fetchFeaturedProductsAsync = createAsyncThunk(
   }
 );
 
+export const fetchProductsByCategoryAsync = createAsyncThunk(
+  "products/fetchByCategory",
+  async ({ categoryId, limit = 10, excludeProductId = null }) => {
+    try {
+      // Build the query parameters
+      let filters = { 
+        category: categoryId, 
+        limit: limit,
+        isActive: true // Only get active products
+      };
+      
+      // If excludeProductId is provided, we'll filter it out after fetching
+      const response = await fetchProducts(filters);
+      
+      // Filter out the excluded product if specified
+      let filteredProducts = response.data || response.products || response;
+      if (excludeProductId && Array.isArray(filteredProducts)) {
+        filteredProducts = filteredProducts.filter(product => product._id !== excludeProductId);
+      }
+      
+      return {
+        data: filteredProducts,
+        totalResults: response.totalResults || filteredProducts.length
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+);
+
 
 const productSlice = createSlice({
   name: "productSlice",
@@ -142,6 +173,10 @@ const productSlice = createSlice({
     resetProductFetchStatus: (state) => {
       state.productFetchStatus = "idle";
     },
+    clearProductsByCategory: (state) => {
+      state.productsByCategory = [];
+      state.productsByCategoryStatus = "idle";
+    },
     toggleFeatured: (state, action) => {
       const productId = action.payload;
       const featuredProducts = state.featuredProducts;
@@ -159,6 +194,9 @@ const productSlice = createSlice({
       .addCase(addProductAsync.fulfilled, (state, action) => {
         state.productAddStatus = "fullfilled";
         state.products.push(action.payload);
+      })
+      .addCase(fetchProductsByCategoryAsync.pending, (state) => {
+        state.productsByCategoryStatus = "pending";
       })
       .addCase(addProductAsync.rejected, (state, action) => {
         state.productAddStatus = "rejected";
@@ -304,6 +342,8 @@ export const selectProductIsFilterOpen = (state) =>
   state.ProductSlice.isFilterOpen;
 export const selectProductFetchStatus = (state) =>
   state.ProductSlice.productFetchStatus;
+export const selectProductsByCategory = (state) =>
+  state.ProductSlice.productsByCategory;
 export const selectFeaturedProducts = (state) =>
   state.ProductSlice.featuredProducts;
 
@@ -317,6 +357,7 @@ export const {
   resetProductAddStatus,
   toggleFilters,
   resetProductFetchStatus,
+  clearProductsByCategory,
 } = productSlice.actions;
 
 export default productSlice.reducer;

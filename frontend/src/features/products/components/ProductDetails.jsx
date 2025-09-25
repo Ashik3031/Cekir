@@ -517,7 +517,7 @@ export const ProductDetails = () => {
           </div>
         </div>
       </div>
-      <FeaturedProductGrid />
+       <FeaturedProductGrid currentProductId={product._id} />
     </div>
   );
 };

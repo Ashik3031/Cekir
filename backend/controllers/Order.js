@@ -4,14 +4,38 @@ const Order = require("../models/Order");
 const { sendMail } = require("../utils/Emails");
 const Product = require("../models/Product");
 const Variant = require("../models/Variants");
+const Address = require("../models/Address");
+const usr = require("../models/User");
 
 exports.create = async (req, res) => {
   try {
-    const { user, items, address, paymentMode, total } = req.body;
-
-    if (!user || !items || !address || !paymentMode || !total) {
+    const { user, items, address: addressId, paymentMode, total } = req.body;
+    console.log(req.body);
+    if (!user || !items || !addressId || !paymentMode || !total) {
       return res.status(400).json({ message: "Invalid request body" });
     }
+
+    const addr = await Address.findOne({ _id: addressId, user });
+    if (!addr) return res.status(404).json({ message: "Address not found" });
+
+
+    const userData = await usr.findById(user);   
+    if (!userData) return res.status(404).json({ message: "User not found" });
+
+    const userEmail = userData.email;
+    if (!userEmail) return res.status(400).json({ message: "User email not found" });
+
+const addressSnapshot = {
+      street: addr.street,
+      city: addr.city,
+      state: addr.state,
+      postalCode: addr.postalCode,
+      country: addr.country,
+      phoneNumber: addr.phoneNumber,
+      type: addr.type,
+      addressId: addr._id, // only if you kept this field in Order.address
+    };
+
 
     const counter = await Counter.findOneAndUpdate(
       { name: "order" },
@@ -55,8 +79,9 @@ exports.create = async (req, res) => {
 
     const created = await Order.create({
       user,
+      userEmail,
       items: finalItems,
-      address,
+      address: addressSnapshot,
       paymentMode,
       total,
       orderNo,
@@ -124,34 +149,57 @@ exports.getByOrderId = async (req, res) => {
   }
 };
 
+// controllers/order.js
+// controllers/order.js
+// controllers/order.js
+
+
+
 exports.getAll = async (req, res) => {
   try {
-    let skip = 0;
-    let limit = 0;
+    const page = Number(req.query.page) || 1;
+    const pageSize = Number(req.query.limit) || 0; // 0 = no limit
+    const skip = pageSize ? pageSize * (page - 1) : 0;
 
-    if (req.query.page && req.query.limit) {
-      const pageSize = req.query.limit;
-      const page = req.query.page;
-      skip = pageSize * (page - 1);
-      limit = pageSize;
-    }
+    const query = {};
 
-    const totalDocs = await Order.find({}).countDocuments().exec();
-    const results = await Order.find({})
-      .skip(skip)
-      .limit(limit)
-      .populate("items.product")
-      .exec();
+    const [totalDocs, results] = await Promise.all([
+      Order.countDocuments(query).exec(),
+      Order.find(query)
+        .skip(skip)
+        .limit(pageSize)
+        // ✅ Get user name + any likely phone fields
+        .populate({
+          path: "user",
+          select:
+            "name firstName lastName email phone phoneNumber mobile mobileNumber contact contactNumber whatsapp",
+        })
+        // ✅ Get product name/title + images for item display
+        .populate({
+          path: "items.product",
+          select: "name title defaultImages thumbnail",
+        })
+        // ✅ Optional but helpful for attrs/images when variant exists
+        .populate({
+          path: "items.variant",
+          select: "title images attributes optionValues sku slug",
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec(),
+    ]);
 
-    res.header("X-Total-Count", totalDocs);
+    res.header("X-Total-Count", String(totalDocs));
     res.status(200).json(results);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res
       .status(500)
       .json({ message: "Error fetching orders, please try again later" });
   }
 };
+
+
 
 exports.updateById = async (req, res) => {
   try {

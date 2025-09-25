@@ -1,6 +1,8 @@
 import axios from "axios";
 import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import Swal from "sweetalert2";
+
 import {
   addProductAsync,
   selectProductAddStatus,
@@ -217,75 +219,191 @@ export const AddProduct = () => {
     setDefaultImages(prev => prev.filter((_, index) => index !== indexToRemove));
   };
 
-  const handleAddProduct = async (data) => {
-    try {
-      toast.info("Uploading images...");
+//   const handleAddProduct = async (data) => {
+//     try {
+//       toast.info("Uploading images...");
 
-      const uploadedDefaultImages = defaultImages.length > 0
-        ? await uploadToServer(defaultImages)
-        : [];
+//       const uploadedDefaultImages = defaultImages.length > 0
+//         ? await uploadToServer(defaultImages)
+//         : [];
 
-      // Upload per-color images (if any)
-      const updatedColors = await Promise.all(
-        colors.map(async (color) => {
-          if (color.localImages && color.localImages.length > 0) {
-            const uploaded = await uploadToServer(color.localImages);
-            return { ...color, images: uploaded };
-          }
-          return { ...color, images: [] };
-        })
-      );
+//       // Upload per-color images (if any)
+//       const updatedColors = await Promise.all(
+//         colors.map(async (color) => {
+//           if (color.localImages && color.localImages.length > 0) {
+//             const uploaded = await uploadToServer(color.localImages);
+//             return { ...color, images: uploaded };
+//           }
+//           return { ...color, images: [] };
+//         })
+//       );
 
-      // Build attributes without undefined/null
-      const formattedVariants = variants.map(v => {
-        const matchingColor = updatedColors.find(c => c.name === v.color);
-        const attrsEntries = [
-          v.color != null ? ["Color", v.color] : null,
-          v.size  != null ? ["Size", v.size]   : null,
-        ].filter(Boolean);
+//       // Build attributes without undefined/null
+//       const formattedVariants = variants.map(v => {
+//         const matchingColor = updatedColors.find(c => c.name === v.color);
+//         const attrsEntries = [
+//           v.color != null ? ["Color", v.color] : null,
+//           v.size  != null ? ["Size", v.size]   : null,
+//         ].filter(Boolean);
 
-        const attrs = Object.fromEntries(attrsEntries);
+//         const attrs = Object.fromEntries(attrsEntries);
 
-        return {
-          price: v.price === "" || v.price == null ? Number(defaultPrice) || 0 : Number(v.price),
-          compareAtPrice:
-            v.compareAtPrice === "" || v.compareAtPrice == null
-              ? null
-              : Number(v.compareAtPrice),
-          stock: v.stock === "" || v.stock == null ? Number(defaultStock) || 0 : Number(v.stock),
-          images: matchingColor?.images || [],
-          attributes: attrs
-        };
-      });
+//         return {
+//           price: v.price === "" || v.price == null ? Number(defaultPrice) || 0 : Number(v.price),
+//           compareAtPrice:
+//             v.compareAtPrice === "" || v.compareAtPrice == null
+//               ? null
+//               : Number(v.compareAtPrice),
+//           stock: v.stock === "" || v.stock == null ? Number(defaultStock) || 0 : Number(v.stock),
+//           images: matchingColor?.images || [],
+//           attributes: attrs
+//         };
+//       });
 
-      const payload = {
-        name: data.name,
-        description: data.description,
-        brand: data.brand,
-        category: data.category,
-        subCategory: data.subCategory,
-        tags: data.tags?.split(",").map(t => t.trim()).filter(Boolean) || [],
-        defaultImages: uploadedDefaultImages,
-        defaultPrice: Number(defaultPrice) || 0,
-        defaultCompareAtPrice:
-          defaultCompareAtPrice !== "" && defaultCompareAtPrice != null
-            ? Number(defaultCompareAtPrice)
-            : null,
-        defaultStock: Number(defaultStock) || 0,
-        hasVariants,
-        // keeping these for UI reference if you persist them, otherwise remove
-        colors: updatedColors.map(c => ({ name: c.name, images: c.images })),
-        sizes: sizes.map(s => ({ name: s.name })),
-        variants: formattedVariants
+//       const payload = {
+//         name: data.name,
+//         description: data.description,
+//         brand: data.brand,
+//         category: data.category,
+//         subCategory: data.subCategory,
+//         tags: data.tags?.split(",").map(t => t.trim()).filter(Boolean) || [],
+//         defaultImages: uploadedDefaultImages,
+//         defaultPrice: Number(defaultPrice) || 0,
+//         defaultCompareAtPrice:
+//           defaultCompareAtPrice !== "" && defaultCompareAtPrice != null
+//             ? Number(defaultCompareAtPrice)
+//             : null,
+//         defaultStock: Number(defaultStock) || 0,
+//         hasVariants,
+//         // keeping these for UI reference if you persist them, otherwise remove
+//         colors: updatedColors.map(c => ({ name: c.name, images: c.images })),
+//         sizes: sizes.map(s => ({ name: s.name })),
+//         variants: formattedVariants
+//       };
+
+//       console.log("Final Payload:", payload);
+//  const result = await dispatch(addProductAsync(payload)).unwrap();
+//  Swal.fire({
+//    icon: "success",
+//    title: "Product Added!",
+//    text: "Your product has been added successfully.",
+//    timer: 2000,
+//    showConfirmButton: false,
+
+//       });
+//     } catch (error) {
+//       console.error("Image upload failed:", error);
+//       toast.error("Image upload failed. Try again.");
+//       Swal.fire({
+//         icon: "error",
+//         title: "Error",
+//         text: "Something went wrong while adding product!",
+//       });
+//     }
+//   };
+
+const handleAddProduct = async (data) => {
+  try {
+    toast.info("Uploading images...");
+
+    const uploadedDefaultImages = defaultImages.length > 0
+      ? await uploadToServer(defaultImages)
+      : [];
+
+    // Upload per-color images (if any)
+    const updatedColors = await Promise.all(
+      colors.map(async (color) => {
+        if (color.localImages && color.localImages.length > 0) {
+          const uploaded = await uploadToServer(color.localImages);
+          return { ...color, images: uploaded };
+        }
+        return { ...color, images: [] };
+      })
+    );
+
+    // Build attributes without undefined/null
+    const formattedVariants = variants.map(v => {
+      const matchingColor = updatedColors.find(c => c.name === v.color);
+      const attrsEntries = [
+        v.color != null ? ["Color", v.color] : null,
+        v.size  != null ? ["Size", v.size]   : null,
+      ].filter(Boolean);
+
+      const attrs = Object.fromEntries(attrsEntries);
+
+      return {
+        price: v.price === "" || v.price == null ? Number(defaultPrice) || 0 : Number(v.price),
+        compareAtPrice:
+          v.compareAtPrice === "" || v.compareAtPrice == null
+            ? null
+            : Number(v.compareAtPrice),
+        stock: v.stock === "" || v.stock == null ? Number(defaultStock) || 0 : Number(v.stock),
+        images: matchingColor?.images || [],
+        attributes: attrs
       };
+    });
 
-      console.log("Final Payload:", payload);
-      dispatch(addProductAsync(payload));
-    } catch (error) {
-      console.error("Image upload failed:", error);
-      toast.error("Image upload failed. Try again.");
-    }
-  };
+    const payload = {
+      name: data.name,
+      description: data.description,
+      brand: data.brand,
+      category: data.category,
+      subCategory: data.subCategory,
+      tags: data.tags?.split(",").map(t => t.trim()).filter(Boolean) || [],
+      defaultImages: uploadedDefaultImages,
+      defaultPrice: Number(defaultPrice) || 0,
+      defaultCompareAtPrice:
+        defaultCompareAtPrice !== "" && defaultCompareAtPrice != null
+          ? Number(defaultCompareAtPrice)
+          : null,
+      defaultStock: Number(defaultStock) || 0,
+      hasVariants,
+      // keeping these for UI reference if you persist them, otherwise remove
+      colors: updatedColors.map(c => ({ name: c.name, images: c.images })),
+      sizes: sizes.map(s => ({ name: s.name })),
+      variants: formattedVariants
+    };
+
+    console.log("Final Payload:", payload);
+    
+    // Wait for the dispatch to complete
+    const result = await dispatch(addProductAsync(payload)).unwrap();
+    
+    // Show success alert
+    Swal.fire({
+      icon: "success",
+      title: "Product Added!",
+      text: "Your product has been added successfully.",
+      timer: 2000,
+      showConfirmButton: false,
+    });
+
+    // Reset form and state
+    reset();
+    setSelectedCategoryId("");
+    setSubCategories([]);
+    setDefaultImages([]);
+    setDefaultPrice(0);
+    setDefaultCompareAtPrice("");
+    setDefaultStock(0);
+    setColors([]);
+    setSizes([]);
+    setVariants([]);
+    setHasVariants(false);
+    
+    // Show toast message
+    toast.success("New product added");
+
+  } catch (error) {
+    console.error("Product addition failed:", error);
+    toast.error("Error adding product. Please try again.");
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "Something went wrong while adding product!",
+    });
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -398,7 +516,7 @@ export const AddProduct = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price (₹) *
+                    Price (AED) *
                   </label>
                   <input
                     type="number"
@@ -411,7 +529,7 @@ export const AddProduct = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Compare At Price (₹)
+                    Compare At Price (AED)
                     <span className="text-xs text-gray-500 block">Original/MRP price for discounts</span>
                   </label>
                   <input
@@ -643,10 +761,10 @@ export const AddProduct = () => {
                                 </th>
                               )}
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Price (₹)
+                                Price (AED)
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Compare At Price (₹)
+                                Compare At Price (AED)
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Stock

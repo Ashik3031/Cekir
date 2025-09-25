@@ -371,7 +371,7 @@ export const ProductUpdate = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price (₹)
+                    Price (AED)
                   </label>
                   <input
                     type="number"
@@ -383,7 +383,7 @@ export const ProductUpdate = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Compare At Price (₹)
+                    Compare At Price (AED)
                     <span className="text-xs text-gray-500 block">Original/MRP price for discounts</span>
                   </label>
                   <input
@@ -720,7 +720,7 @@ export const ProductUpdate = () => {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Compare At Price (₹)
+                              Compare At Price (AED)
                               <span className="text-xs text-gray-400 block">MRP/Original</span>
                             </label>
                             <input
@@ -755,12 +755,12 @@ export const ProductUpdate = () => {
                           </div>
                           <div>
                             <span className="text-sm font-medium text-gray-700">Price:</span>
-                            <p className="text-gray-900">₹{variant.price}</p>
+                            <p className="text-gray-900">AED{variant.price}</p>
                           </div>
                           <div>
                             <span className="text-sm font-medium text-gray-700">Compare At Price:</span>
                             <p className="text-gray-900">
-                              {variant.compareAtPrice ? `₹${variant.compareAtPrice}` : 'N/A'}
+                              {variant.compareAtPrice ? `AED${variant.compareAtPrice}` : 'N/A'}
                               {variant.compareAtPrice && variant.compareAtPrice > variant.price && (
                                 <span className="text-green-600 text-xs ml-1">
                                   ({Math.round(((variant.compareAtPrice - variant.price) / variant.compareAtPrice) * 100)}% off)

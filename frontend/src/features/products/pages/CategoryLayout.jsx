@@ -465,7 +465,7 @@ const CategoryLayout = () => {
             Price
           </Typography>
           <Typography variant="body2" sx={{ mb: 2, fontSize: "12px", color: "#666" }}>
-            ₹{filters.priceRange[0].toLocaleString()} - ₹{filters.priceRange[1].toLocaleString()}
+            AED{filters.priceRange[0].toLocaleString()} - AED{filters.priceRange[1].toLocaleString()}
           </Typography>
           <Slider
             value={filters.priceRange}
@@ -659,7 +659,7 @@ const CategoryLayout = () => {
             </Typography>
 
             <Typography variant="body2" sx={{ fontWeight: 500, color: "#000", fontSize: "14px" }}>
-              ₹{price.toLocaleString()}
+              AED {price.toLocaleString()}
             </Typography>
           </Box>
         </Box>
@@ -1067,7 +1067,7 @@ const CategoryLayout = () => {
                   </Typography>
 
                   <Typography variant="h6" sx={{ fontWeight: 500, mb: 3 }}>
-                    ₹{(showQuickView?.price || showQuickView?.defaultPrice || 0).toLocaleString()}
+                    AED{(showQuickView?.price || showQuickView?.defaultPrice || 0).toLocaleString()}
                   </Typography>
 
                   <Typography variant="body2" sx={{ color: "#666", mb: 4, lineHeight: 1.6 }}>

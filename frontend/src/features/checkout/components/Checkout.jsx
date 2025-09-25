@@ -35,16 +35,15 @@ import {
 } from "../../order/OrderSlice";
 import { resetCartByUserIdAsync, selectCartItems } from "../../cart/CartSlice";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { SHIPPING, TAXES } from "../../../constants";
+import { SHIPPING } from "../../../constants";
 import { motion } from "framer-motion";
 import { loadStripe } from "@stripe/stripe-js";
 import { axiosi } from "../../../config/axios";
 
 export const Checkout = () => {
-  const status = "";
-  const addresses = useSelector(selectAddresses);
+  const addresses = useSelector(selectAddresses) || [];
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("COD"); // ✅ default matches checks
   const {
     register,
     handleSubmit,
@@ -55,23 +54,29 @@ export const Checkout = () => {
   const loggedInUser = useSelector(selectLoggedInUser);
   const addressStatus = useSelector(selectAddressStatus);
   const navigate = useNavigate();
-  const cartItems = useSelector(selectCartItems);
+  const cartItems = useSelector(selectCartItems) || [];
   const orderStatus = useSelector(selectOrderStatus);
   const currentOrder = useSelector(selectCurrentOrder);
 
-  const orderTotal = cartItems.reduce(
-    (acc, item) => (item?.variant?.price || 0) * item.quantity + acc,
-    0
-  );
+  // ✅ Safe total (works with variant or product-only items)
+  const orderTotal =
+    cartItems?.reduce((acc, item) => {
+      const unit = item?.variant?.price ?? item?.product?.price ?? 0;
+      const qty = item?.quantity ?? 0;
+      return acc + unit * qty;
+    }, 0) ?? 0;
 
   const theme = useTheme();
   const is900 = useMediaQuery(theme.breakpoints.down(900));
   const is480 = useMediaQuery(theme.breakpoints.down(480));
 
   const handleAddAddress = async (data) => {
+    if (!loggedInUser?._id) {
+      alert("Please log in first.");
+      return;
+    }
     const address = { ...data, user: loggedInUser._id };
     const resultAction = await dispatch(addAddressAsync(address));
-
     if (addAddressAsync.fulfilled.match(resultAction)) {
       reset();
     } else {
@@ -79,64 +84,131 @@ export const Checkout = () => {
     }
   };
 
-const handleCreateOrder = async () => {
-  const orderData = {
-    user: loggedInUser._id,
-    items: cartItems.map((item) => ({
-      variantId: item.variant._id,   // ✅ send variantId explicitly
-      quantity: item.quantity,
-    })),
-    address: selectedAddress,
-    paymentMode: selectedPaymentMethod,
-    total: orderTotal + SHIPPING + TAXES,
+  const handleCreateOrder = async () => {
+    // ✅ Guards
+    if (!loggedInUser?._id) {
+      alert("Please log in first.");
+      return;
+    }
+    if (!Array.isArray(cartItems) || cartItems.length === 0) {
+      alert("Your cart is empty.");
+      return;
+    }
+    if (!selectedAddress?._id) {
+      alert("Please select an address.");
+      return;
+    }
+    if (!["COD", "CARD"].includes(selectedPaymentMethod)) {
+      alert("Please choose a payment method.");
+      return;
+    }
+
+    // ✅ Build items: prefer variantId; fallback to productId if your backend allows
+    const builtItems = cartItems
+      .map((item) => {
+        const quantity = item?.quantity ?? 1;
+        if (item?.variant?._id) {
+          return { variantId: item.variant._id, quantity };
+        }
+        if (item?.product?._id) {
+          // If backend supports product-only lines when no variant exists.
+          return { productId: item.product._id, quantity };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (builtItems.length === 0) {
+      console.error("Cart lines are missing variantId/productId:", cartItems);
+      alert("There’s a problem with your cart items. Please re-add them.");
+      return;
+    }
+
+    const orderData = {
+      user: loggedInUser._id,
+      items: builtItems,
+      address: selectedAddress._id, // ✅ send ID only
+      paymentMode: selectedPaymentMethod, // "COD" or "CARD"
+      total: orderTotal + SHIPPING ,
+    };
+
+    if (selectedPaymentMethod === "COD") {
+      try {
+        const createdOrder = await dispatch(createOrderAsync(orderData)).unwrap();
+        if (createdOrder?._id) {
+          dispatch(resetCartByUserIdAsync(loggedInUser._id));
+          navigate(`/order-success/${createdOrder._id}`);
+        } else {
+          throw new Error("Order creation did not return an _id");
+        }
+      } catch (err) {
+        console.error("Failed to create order:", err);
+        alert("Failed to place the order. Please try again.");
+      }
+    } else {
+      // CARD flow
+      try {
+        const stripe = await loadStripe(
+          "pk_test_51S0e5iR4kvEyPzGDrQhqTvS4p3GgDu47o3J2h3D3sv87YW1htUMEIawju2X8jNCzQS24gEUVUr9sTbDFWlNkmW8900bWvUSA78"
+        );
+
+        // Send a clean cart for Stripe line items
+        // const sanitizedCart = cartItems.map((item) => ({
+        //   variantId: item?.variant?._id ?? null,
+        //   productId: item?.product?._id ?? null,
+        //   quantity: item?.quantity ?? 1,
+        //   name: item?.variant?.name ?? item?.product?.name ?? "Item",
+        //   price: item?.variant?.price ?? item?.product?.price ?? 0,
+        //   image:
+        //     item?.variant?.images?.[0] ??
+        //     item?.product?.defaultImages?.[0] ??
+        //     null,
+        // }));
+
+         const products = cartItems.map((item) => ({
+   quantity: item?.quantity ?? 1,
+   // keep ids if you need them later in webhook/fulfillment
+   variantId: item?.variant?._id ?? null,
+   productId: item?.product?._id ?? null,
+   product: {
+     title: item?.variant?.name ?? item?.product?.name ?? "Item",
+     price: item?.variant?.price ?? item?.product?.price ?? 0,
+     image:
+       item?.variant?.images?.[0] ??
+       item?.product?.defaultImages?.[0] ??
+       null,
+   },
+}));
+
+        // const response = await axiosi.post(
+        //   "/checkout/create-checkout-session",
+        //   { cart: sanitizedCart, orderData },
+        //   { headers: { "Content-Type": "application/json" } }
+        // );
+
+         const response = await axiosi.post(
+   "/checkout/create-checkout-session",
+   { products, orderData },
+   { headers: { "Content-Type": "application/json" } }
+ );
+
+        if (response.status === 200) {
+          const sessionId = response.data.id;
+          const { error } = await stripe.redirectToCheckout({ sessionId });
+          if (error) {
+            console.error("Stripe redirect error", error);
+            alert("Payment failed. Please try again.");
+          }
+        } else {
+          console.error("Stripe checkout error", response.data);
+          alert("Unable to start checkout. Try again.");
+        }
+      } catch (err) {
+        console.error("Checkout error:", err);
+        alert("Something went wrong. Please try again.");
+      }
+    }
   };
-
-  if (selectedPaymentMethod === "COD") {
-    try {
-      const createdOrder = await dispatch(createOrderAsync(orderData)).unwrap();
-      if (createdOrder?._id) {
-        dispatch(resetCartByUserIdAsync(loggedInUser?._id));
-        navigate(`/order-success/${createdOrder._id}`);
-      }
-    } catch (err) {
-      console.error("Failed to create order:", err);
-      alert("Failed to place the order. Please try again.");
-    }
-  } else if (selectedPaymentMethod === "CARD") {
-    try {
-      const stripe = await loadStripe("pk_live_51QjOA0GSJadpZs7U3LiJV58oh3a8CMiUrGazsBZyfPY4ZUJZXFpQYtmAOdYsTQKRsTVb2sdjHeGBz7nFe8txEWsp00cTrsXdB1");
-
-      const response = await axiosi.post(
-        "/checkout/create-checkout-session",
-        {
-          products: cartItems,
-          orderData,  // includes variantId and quantity
-        },
-        {
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      if (response.status === 200) {
-        const sessionId = response.data.id;
-        const { error } = await stripe.redirectToCheckout({ sessionId });
-
-        if (error) {
-          console.error("Stripe redirect error", error);
-          alert("Payment failed. Please try again.");
-        }
-      } else {
-        console.error("Stripe checkout error", response.data);
-        alert("Unable to start checkout. Try again.");
-      }
-    } catch (err) {
-      console.error("Checkout error:", err);
-      alert("Something went wrong. Please try again.");
-    }
-  }
-};
-
-
 
   useEffect(() => {
     if (addressStatus === "fulfilled") {
@@ -190,7 +262,7 @@ const handleCreateOrder = async () => {
           <Stack>
             <Typography gutterBottom>Type</Typography>
             <TextField
-              placeholder="Eg. Home, Buisness"
+              placeholder="Eg. Home, Business"
               {...register("type", { required: true })}
             />
           </Stack>
@@ -213,7 +285,7 @@ const handleCreateOrder = async () => {
             />
           </Stack>
 
-          <Stack flexDirection={"row"}>
+          <Stack flexDirection={"row"} gap={2}>
             <Stack width={"100%"}>
               <Typography gutterBottom>City</Typography>
               <TextField {...register("city", { required: true })} />
@@ -233,7 +305,7 @@ const handleCreateOrder = async () => {
 
           <Stack flexDirection={"row"} alignSelf={"flex-end"} columnGap={1}>
             <LoadingButton
-              loading={status === "pending"}
+              loading={addressStatus === "pending"}
               type="submit"
               variant="contained"
             >
@@ -250,7 +322,7 @@ const handleCreateOrder = async () => {
           <Stack>
             <Typography variant="h6">Address</Typography>
             <Typography variant="body2" color={"text.secondary"}>
-              Choose from existing Addresses
+              Choose from existing addresses
             </Typography>
           </Stack>
 
@@ -261,38 +333,38 @@ const handleCreateOrder = async () => {
             justifyContent={"flex-start"}
             alignContent={"flex-start"}
           >
-            {addresses.map((address, index) => (
-              <FormControl item>
-                <Stack
-                  key={address._id}
-                  p={is480 ? 2 : 2}
-                  width={is480 ? "100%" : "20rem"}
-                  height={is480 ? "auto" : "15rem"}
-                  rowGap={2}
-                  component={is480 ? Paper : Paper}
-                  elevation={1}
-                >
-                  <Stack flexDirection={"row"} alignItems={"center"}>
-                    <Radio
-                      checked={selectedAddress === address}
-                      name="addressRadioGroup"
-                      value={selectedAddress}
-                      onChange={(e) => setSelectedAddress(addresses[index])}
-                    />
-                    <Typography>{address.type}</Typography>
-                  </Stack>
+            {addresses.map((address) => (
+              <Grid item key={address._id}>
+                <FormControl>
+                  <Stack
+                    p={is480 ? 2 : 2}
+                    width={is480 ? "100%" : "20rem"}
+                    height={is480 ? "auto" : "15rem"}
+                    rowGap={2}
+                    component={Paper}
+                    elevation={1}
+                  >
+                    <Stack flexDirection={"row"} alignItems={"center"}>
+                      <Radio
+                        checked={selectedAddress?._id === address._id}
+                        name="addressRadioGroup"
+                        onChange={() => setSelectedAddress(address)}
+                      />
+                      <Typography>{address.type}</Typography>
+                    </Stack>
 
-                  {/* details */}
-                  <Stack>
-                    <Typography>{address.street}</Typography>
-                    <Typography>
-                      {address.state}, {address.city}, {address.country},{" "}
-                      {address.postalCode}
-                    </Typography>
-                    <Typography>{address.phoneNumber}</Typography>
+                    {/* details */}
+                    <Stack>
+                      <Typography>{address.street}</Typography>
+                      <Typography>
+                        {address.state}, {address.city}, {address.country},{" "}
+                        {address.postalCode}
+                      </Typography>
+                      <Typography>{address.phoneNumber}</Typography>
+                    </Stack>
                   </Stack>
-                </Stack>
-              </FormControl>
+                </FormControl>
+              </Grid>
             ))}
           </Grid>
         </Stack>
@@ -313,7 +385,6 @@ const handleCreateOrder = async () => {
               alignItems={"center"}
             >
               <Radio
-                value={selectedPaymentMethod}
                 name="paymentMethod"
                 checked={selectedPaymentMethod === "COD"}
                 onChange={() => setSelectedPaymentMethod("COD")}
@@ -327,7 +398,6 @@ const handleCreateOrder = async () => {
               alignItems={"center"}
             >
               <Radio
-                value={selectedPaymentMethod}
                 name="paymentMethod"
                 checked={selectedPaymentMethod === "CARD"}
                 onChange={() => setSelectedPaymentMethod("CARD")}
@@ -342,6 +412,7 @@ const handleCreateOrder = async () => {
       <Stack
         width={is900 ? "100%" : "auto"}
         alignItems={is900 ? "flex-start" : ""}
+        gap={2}
       >
         <Typography variant="h4">Order summary</Typography>
         <Cart checkout={true} />
@@ -351,6 +422,12 @@ const handleCreateOrder = async () => {
           variant="contained"
           size="large"
           onClick={handleCreateOrder}
+          disabled={
+            !loggedInUser?._id ||
+            !selectedAddress?._id ||
+            !cartItems?.length ||
+            !["COD", "CARD"].includes(selectedPaymentMethod)
+          }
         >
           Pay and order
         </LoadingButton>

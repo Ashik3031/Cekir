@@ -135,7 +135,7 @@ const ProductFeatured = () => {
                   )}
                   {/* Price */}
                   <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 backdrop-blur-sm rounded-full px-4 py-2 font-semibold text-lg text-gray-900 shadow-md z-10">
-                    ₹{product.variants?.[0]?.price || product.price || "N/A"}
+                    AED {product.variants?.[0]?.price || product.price || "N/A"}
                   </div>
                 </div>
 
