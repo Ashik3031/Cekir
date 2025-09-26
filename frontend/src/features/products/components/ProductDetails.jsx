@@ -46,6 +46,36 @@ export const ProductDetails = () => {
 
   useEffect(() => {
     if (!variants.length) return;
+    
+    // Auto-select options if there's only one variant or one option per type
+    const autoSelectOptions = {};
+    
+    // Auto-select color if there's only one color
+    if (uniqueColors.length === 1) {
+      autoSelectOptions.Color = uniqueColors[0][0];
+    }
+    
+    // Auto-select size if there's only one size
+    if (uniqueSizes.length === 1) {
+      autoSelectOptions.Size = uniqueSizes[0];
+    }
+    
+    // If there's only one variant total, auto-select it
+    if (variants.length === 1) {
+      const singleVariant = variants[0];
+      if (singleVariant.optionValues.Color) {
+        autoSelectOptions.Color = singleVariant.optionValues.Color;
+      }
+      if (singleVariant.optionValues.Size) {
+        autoSelectOptions.Size = singleVariant.optionValues.Size;
+      }
+    }
+    
+    // Update selectedOptions if we have auto-selections and nothing is currently selected
+    if (Object.keys(autoSelectOptions).length > 0 && Object.keys(selectedOptions).length === 0) {
+      setSelectedOptions(autoSelectOptions);
+    }
+    
     const variant = variants.find((v) =>
       (!selectedOptions.Color || v.optionValues.Color === selectedOptions.Color) &&
       (!selectedOptions.Size || v.optionValues.Size === selectedOptions.Size)
@@ -53,10 +83,10 @@ export const ProductDetails = () => {
     if (variant) {
       dispatch(setSelectedVariant(variant));
       setSelectedImageIndex(0);
-    } else {
+    } else { 
       dispatch(setSelectedVariant(null));
     }
-  }, [selectedOptions, variants, dispatch]);
+  }, [selectedOptions, variants, dispatch, uniqueColors.length, uniqueSizes.length]);
 
   useEffect(() => {
     dispatch(fetchProductByIdAsync(id));
@@ -71,7 +101,7 @@ export const ProductDetails = () => {
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Loading product...</p>
+          <p className="text-lg text-gray-600">Loading product....</p>
         </div>
       </div>
     );
@@ -108,9 +138,13 @@ export const ProductDetails = () => {
   const handleAddToCart = () => {
     if (!loggedInUser) return navigate("/login");
     if (!isInStock) return toast.error("Out of Stock");
-    if (!selectedOptions?.Color) return toast.error("Please select a color");
-    if (uniqueSizes.length > 0 && !selectedOptions?.Size)
-      return toast.error("Please select a size");
+    
+    // Only require color selection if there are multiple colors
+    if (uniqueColors.length > 1 && !selectedOptions?.Color) return toast.error("Please select a color");
+    
+    // Only require size selection if there are multiple sizes
+    if (uniqueSizes.length > 1 && !selectedOptions?.Size) return toast.error("Please select a size");
+    
     if (!selectedVariant || !selectedVariant._id) return toast.error("Variant not found");
 
     dispatch(
@@ -136,6 +170,20 @@ export const ProductDetails = () => {
     if (!isInStock) return 'bg-red-100 text-red-800';
     if (currentStock < 5) return 'bg-yellow-100 text-yellow-800';
     return 'bg-green-100 text-green-800';
+  };
+
+  // Helper function to check if Add to Cart should be disabled
+  const isAddToCartDisabled = () => {
+    // If there are multiple colors and none selected
+    if (uniqueColors.length > 1 && !selectedOptions.Color) return true;
+    
+    // If there are multiple sizes and none selected
+    if (uniqueSizes.length > 1 && !selectedOptions.Size) return true;
+    
+    // If out of stock or already in cart
+    if (!isInStock || isInCart) return true;
+    
+    return false;
   };
 
   return (
@@ -271,8 +319,8 @@ export const ProductDetails = () => {
               {/* User Only Options */}
               {!loggedInUser?.isAdmin && (
                 <>
-                  {/* Colors */}
-                  {uniqueColors.length > 0 && (
+                  {/* Colors - Only show if there are multiple colors */}
+                  {uniqueColors.length > 1 && (
                     <div className="mb-6">
                       <p className="mb-3 font-medium text-lg">
                         Select Color:
@@ -309,8 +357,8 @@ export const ProductDetails = () => {
                     </div>
                   )}
 
-                  {/* Sizes */}
-                  {uniqueSizes.length > 0 && (
+                  {/* Sizes - Only show if there are multiple sizes */}
+                  {uniqueSizes.length > 1 && (
                     <div className="mb-6">
                       <p className="mb-3 font-medium text-lg">
                         Select Size:
@@ -356,20 +404,12 @@ export const ProductDetails = () => {
                     </div>
                   )}
 
-                  {/* ✅ Enhanced Add to Cart Button - Now reflects variant-specific pricing */}
+                  {/* ✅ Enhanced Add to Cart Button - Fixed for single variant products */}
                   <button
                     onClick={handleAddToCart}
-                    disabled={
-                      !selectedOptions.Color ||
-                      (uniqueSizes.length > 0 && !selectedOptions.Size) ||
-                      !isInStock ||
-                      isInCart
-                    }
+                    disabled={isAddToCartDisabled()}
                     className={`w-full py-4 rounded-full text-lg font-semibold transition-all ${
-                      !selectedOptions.Color ||
-                      (uniqueSizes.length > 0 && !selectedOptions.Size) ||
-                      !isInStock ||
-                      isInCart
+                      isAddToCartDisabled()
                         ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                         : hasDiscount
                         ? "bg-red-600 text-white hover:bg-red-700 shadow-lg"
