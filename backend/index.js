@@ -30,17 +30,16 @@ connectToDB();
 // Normalize and log allowed origins
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
-  .map(origin => origin.trim().replace(/\/$/, "")); // Remove trailing slash
-
-console.log("✅ Allowed Origins:", allowedOrigins); // <-- this will show up in Render logs
+  .map(o => o.trim().replace(/\/$/, "").replace(/^https?:\/\//, ""));
 
 server.use(
   cors({
     origin: (origin, callback) => {
-      const normalizedOrigin = origin?.replace(/\/$/, ""); // normalize incoming origin
-      if (!origin || allowedOrigins.includes(normalizedOrigin)) {
-        callback(null, true);
-      } else {
+      if (!origin) return callback(null, true); // allow non-browser clients
+      const normalized = origin.replace(/\/$/, "").replace(/^https?:\/\//, "");
+      const isAllowed = allowedOrigins.some(allowed => normalized.endsWith(allowed));
+      if (isAllowed) callback(null, true);
+      else {
         console.error("❌ Blocked by CORS:", origin);
         callback(new Error("Not allowed by CORS"));
       }
