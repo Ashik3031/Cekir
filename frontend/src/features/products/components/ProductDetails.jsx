@@ -39,6 +39,9 @@ export const ProductDetails = () => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [isFavorite, setIsFavorite] = useState(false);
 
+    const hasVariants = variants && variants.length > 0;
+
+
   const uniqueColors = [
     ...new Map(variants.map((v) => [v.optionValues.Color, v.images?.[0]])).entries(),
   ];
@@ -131,31 +134,49 @@ export const ProductDetails = () => {
     ? (numericCompareAt - numericPrice).toFixed(2)
     : 0;
 
-  const isInCart =
-    !!selectedVariant &&
-    cartItems.some((item) => item?.variant?._id === selectedVariant._id);
+    const isInCart = hasVariants
+    ? (!!selectedVariant &&
+        cartItems.some((item) => item?.variant?._id === selectedVariant._id))
+    : cartItems.some((item) => item?.product?._id === product._id);
 
-  const handleAddToCart = () => {
+    const handleAddToCart = () => {
     if (!loggedInUser) return navigate("/login");
     if (!isInStock) return toast.error("Out of Stock");
-    
-    // Only require color selection if there are multiple colors
-    if (uniqueColors.length > 1 && !selectedOptions?.Color) return toast.error("Please select a color");
-    
-    // Only require size selection if there are multiple sizes
-    if (uniqueSizes.length > 1 && !selectedOptions?.Size) return toast.error("Please select a size");
-    
-    if (!selectedVariant || !selectedVariant._id) return toast.error("Variant not found");
 
-    dispatch(
-      addToCartAsync({
-        user: loggedInUser._id,
-        variant: selectedVariant._id,
-        quantity,
-      })
-    );
+    // 👉 CASE 1: Product HAS variants
+    if (hasVariants) {
+      // Only require color selection if there are multiple colors
+      if (uniqueColors.length > 1 && !selectedOptions?.Color)
+        return toast.error("Please select a color");
+
+      // Only require size selection if there are multiple sizes
+      if (uniqueSizes.length > 1 && !selectedOptions?.Size)
+        return toast.error("Please select a size");
+
+      if (!selectedVariant || !selectedVariant._id)
+        return toast.error("Variant not found");
+
+      dispatch(
+        addToCartAsync({
+          user: loggedInUser._id,
+          variant: selectedVariant._id,
+          quantity,
+        })
+      );
+    } else {
+      // 👉 CASE 2: Product has NO variants – add by product
+      dispatch(
+        addToCartAsync({
+          user: loggedInUser._id,
+          product: product._id,
+          quantity,
+        })
+      );
+    }
+
     toast.success("Product added to cart");
   };
+
 
   const totalInventory = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
 
@@ -173,18 +194,25 @@ export const ProductDetails = () => {
   };
 
   // Helper function to check if Add to Cart should be disabled
-  const isAddToCartDisabled = () => {
-    // If there are multiple colors and none selected
-    if (uniqueColors.length > 1 && !selectedOptions.Color) return true;
-    
-    // If there are multiple sizes and none selected
-    if (uniqueSizes.length > 1 && !selectedOptions.Size) return true;
-    
+    const isAddToCartDisabled = () => {
+    // If there ARE variants, enforce option selection
+    if (hasVariants) {
+      // If there are multiple colors and none selected
+      if (uniqueColors.length > 1 && !selectedOptions.Color) return true;
+
+      // If there are multiple sizes and none selected
+      if (uniqueSizes.length > 1 && !selectedOptions.Size) return true;
+
+      // If for some reason variant couldn't be resolved
+      if (!selectedVariant) return true;
+    }
+
     // If out of stock or already in cart
     if (!isInStock || isInCart) return true;
-    
+
     return false;
   };
+
 
   return (
     <div className="min-h-screen bg-white">
