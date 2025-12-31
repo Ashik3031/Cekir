@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Box, 
-  CircularProgress, 
-  Typography, 
-  Button, 
-  Stack, 
-  Paper, 
-  Container 
+import {
+  Box,
+  CircularProgress,
+  Typography,
+  Button,
+  Stack,
+  Paper,
+  Container
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
@@ -24,19 +24,19 @@ const PaymentProcessing = () => {
     const verifyPayment = async () => {
       const params = new URLSearchParams(location.search);
       const sessionId = params.get('session_id');
-      
+
       if (!sessionId) {
         setError('Invalid session ID');
         setStatus('failed');
         return;
       }
-      
+
       try {
         // Poll payment status
         const checkStatus = async () => {
           try {
-            const response = await axiosi.get(`/api/checkout/verify-payment?sessionId=${sessionId}`);
-            
+            const response = await axiosi.get(`/checkout/verify-payment?sessionId=${sessionId}`);
+
             if (response.data.success) {
               if (response.data.paid) {
                 if (response.data.orderId) {
@@ -66,7 +66,7 @@ const PaymentProcessing = () => {
             setTimeout(checkStatus, 3000);
           }
         };
-        
+
         // Start checking
         checkStatus();
       } catch (err) {
@@ -75,7 +75,7 @@ const PaymentProcessing = () => {
         setError('Failed to verify payment status');
       }
     };
-    
+
     verifyPayment();
   }, [location.search, navigate]);
 
@@ -92,7 +92,7 @@ const PaymentProcessing = () => {
               </Typography>
             </>
           )}
-          
+
           {status === 'success' && (
             <>
               <CheckCircleIcon color="success" sx={{ fontSize: 60 }} />
@@ -102,7 +102,7 @@ const PaymentProcessing = () => {
               </Typography>
             </>
           )}
-          
+
           {status === 'failed' && (
             <>
               <ErrorIcon color="error" sx={{ fontSize: 60 }} />
@@ -111,15 +111,15 @@ const PaymentProcessing = () => {
                 {error || 'There was an issue processing your payment.'}
               </Typography>
               <Stack direction="row" spacing={2}>
-                <Button 
-                  variant="contained" 
-                  color="primary" 
+                <Button
+                  variant="contained"
+                  color="primary"
                   onClick={() => navigate('/cart')}
                 >
                   Return to Cart
                 </Button>
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   onClick={() => navigate('/')}
                 >
                   Continue Shopping

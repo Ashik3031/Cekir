@@ -1,0 +1,6 @@
+Testing with Merchant ID (Current Config): 0d5ce350-dbee-11f0-9620-7e8ddb869b9d
+[FAIL] Error for Merchant ID (Current Config): {"error_code":0,"error_message":"Failed retrieve of Merchant.","errors":[]}
+------------------------------------------------
+Testing with Merchant Key (Swapped): 0d5a743d-dbee-11f0-b125-7e8ddb869b9d
+[FAIL] Error for Merchant Key (Swapped): {"error_code":0,"error_message":"Failed retrieve of Merchant.","errors":[]}
+------------------------------------------------

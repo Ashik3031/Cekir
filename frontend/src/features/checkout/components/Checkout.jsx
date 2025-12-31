@@ -37,7 +37,7 @@ import { resetCartByUserIdAsync, selectCartItems } from "../../cart/CartSlice";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { SHIPPING } from "../../../constants";
 import { motion } from "framer-motion";
-import { loadStripe } from "@stripe/stripe-js";
+// import { loadStripe } from "@stripe/stripe-js";
 import { axiosi } from "../../../config/axios";
 
 export const Checkout = () => {
@@ -129,7 +129,7 @@ export const Checkout = () => {
       items: builtItems,
       address: selectedAddress._id, // ✅ send ID only
       paymentMode: selectedPaymentMethod, // "COD" or "CARD"
-      total: orderTotal + SHIPPING ,
+      total: orderTotal + SHIPPING,
     };
 
     if (selectedPaymentMethod === "COD") {
@@ -148,59 +148,30 @@ export const Checkout = () => {
     } else {
       // CARD flow
       try {
-        const stripe = await loadStripe(
-          "pk_test_51S0e5iR4kvEyPzGDrQhqTvS4p3GgDu47o3J2h3D3sv87YW1htUMEIawju2X8jNCzQS24gEUVUr9sTbDFWlNkmW8900bWvUSA78"
+        const products = cartItems.map((item) => ({
+          quantity: item?.quantity ?? 1,
+          variantId: item?.variant?._id ?? null,
+          productId: item?.product?._id ?? null,
+          product: {
+            title: item?.variant?.name ?? item?.product?.name ?? "Item",
+            price: item?.variant?.price ?? item?.product?.price ?? 0,
+            image:
+              item?.variant?.images?.[0] ??
+              item?.product?.defaultImages?.[0] ??
+              null,
+          },
+        }));
+
+        const response = await axiosi.post(
+          "/checkout/create-checkout-session",
+          { products, orderData },
+          { headers: { "Content-Type": "application/json" } }
         );
 
-        // Send a clean cart for Stripe line items
-        // const sanitizedCart = cartItems.map((item) => ({
-        //   variantId: item?.variant?._id ?? null,
-        //   productId: item?.product?._id ?? null,
-        //   quantity: item?.quantity ?? 1,
-        //   name: item?.variant?.name ?? item?.product?.name ?? "Item",
-        //   price: item?.variant?.price ?? item?.product?.price ?? 0,
-        //   image:
-        //     item?.variant?.images?.[0] ??
-        //     item?.product?.defaultImages?.[0] ??
-        //     null,
-        // }));
-
-         const products = cartItems.map((item) => ({
-   quantity: item?.quantity ?? 1,
-   // keep ids if you need them later in webhook/fulfillment
-   variantId: item?.variant?._id ?? null,
-   productId: item?.product?._id ?? null,
-   product: {
-     title: item?.variant?.name ?? item?.product?.name ?? "Item",
-     price: item?.variant?.price ?? item?.product?.price ?? 0,
-     image:
-       item?.variant?.images?.[0] ??
-       item?.product?.defaultImages?.[0] ??
-       null,
-   },
-}));
-
-        // const response = await axiosi.post(
-        //   "/checkout/create-checkout-session",
-        //   { cart: sanitizedCart, orderData },
-        //   { headers: { "Content-Type": "application/json" } }
-        // );
-
-         const response = await axiosi.post(
-   "/checkout/create-checkout-session",
-   { products, orderData },
-   { headers: { "Content-Type": "application/json" } }
- );
-
-        if (response.status === 200) {
-          const sessionId = response.data.id;
-          const { error } = await stripe.redirectToCheckout({ sessionId });
-          if (error) {
-            console.error("Stripe redirect error", error);
-            alert("Payment failed. Please try again.");
-          }
+        if (response.status === 200 && response.data.redirect_url) {
+          window.location.href = response.data.redirect_url;
         } else {
-          console.error("Stripe checkout error", response.data);
+          console.error("TotalPay checkout error or no redirect", response.data);
           alert("Unable to start checkout. Try again.");
         }
       } catch (err) {
