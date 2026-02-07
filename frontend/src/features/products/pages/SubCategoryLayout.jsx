@@ -1,4 +1,4 @@
-import {  useState } from "react";
+import { useState } from "react";
 import { useOutletContext, useParams, useNavigate } from "react-router-dom";
 import { useProducts } from "../../../hooks/useProducts";
 import { Grid, Pagination, Stack, useMediaQuery, Box } from "@mui/material";
@@ -49,12 +49,12 @@ const SubcategoryLayout = ({ isFilterOpen = false }) => {
       subCategory.name.toLowerCase() === subcategoryTitle?.toLowerCase()
   );
 
-const shouldFetch = !!(currentCategory?._id && currentSubCategory?._id);
+  const shouldFetch = !!(currentCategory?._id && currentSubCategory?._id);
 
-// Show a loader while waiting for category/subcategory to be resolved
+  // Show a loader while waiting for category/subcategory to be resolved
 
 
-  
+
   const { products, fetchStatus, totalPages } = useProducts({
     category: currentCategory?._id,
     subCategory: currentSubCategory?._id,
@@ -64,16 +64,16 @@ const shouldFetch = !!(currentCategory?._id && currentSubCategory?._id);
     skip: !shouldFetch,
   });
 
-if (!shouldFetch) {
-  return (
-    <Stack alignItems="center" justifyContent="center" height="50vh">
-      <Lottie
-        animationData={loadingAnimation}
-        style={{ width: isMobile ? 150 : 200 }}
-      />
-    </Stack>
-  );
-}
+  if (!shouldFetch) {
+    return (
+      <Stack alignItems="center" justifyContent="center" height="50vh">
+        <Lottie
+          animationData={loadingAnimation}
+          style={{ width: isMobile ? 150 : 200 }}
+        />
+      </Stack>
+    );
+  }
 
   const handleAddRemoveFromWishlist = (e, productId) => {
     if (e.target.checked) {
@@ -122,7 +122,7 @@ if (!shouldFetch) {
             src="https://lottie.host/269f41d8-b5c8-455c-9792-a7f0a828f1e7/m5DumKEtjE.lottie"
             loop
             autoplay
-            
+
           />
         </div>
         <p className="text-center text-gray-500 text-lg">
@@ -131,7 +131,7 @@ if (!shouldFetch) {
       </Stack>
     );
   }
-  
+
   const getGridSizes = () => {
     if (isMobile) {
       return { xs: 12 };
@@ -175,9 +175,9 @@ if (!shouldFetch) {
           >
             <ProductCard
               id={product._id}
-              title={product.title}
+              title={product.name || product.title}
               thumbnail={product.thumbnail}
-              price={product.price}
+              price={product.variants?.[0]?.price || product.price}
               description={product.description}
               handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
               onClick={() => navigate(`/product-details/${product._id}`)}

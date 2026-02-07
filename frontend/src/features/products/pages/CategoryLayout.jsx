@@ -550,17 +550,17 @@ const CategoryLayout = () => {
   );
 
   const ProductCard = ({ product, index }) => {
-  // compute first, no hooks
-  const productId = product?._id;
-  const isWishlisted = wishlistSafe.some(
-    (item) => item?.product?._id && productId && item.product._id === productId
-  );
+    // compute first, no hooks
+    const productId = product?._id;
+    const isWishlisted = wishlistSafe.some(
+      (item) => item?.product?._id && productId && item.product._id === productId
+    );
 
-  // safe early return AFTER any hooks (we don't have hooks here now)
-  if (!product) return null;
+    // safe early return AFTER any hooks (we don't have hooks here now)
+    if (!product) return null;
 
-  const price = product?.price || product?.defaultPrice || 0;
-  const stock = product?.stock || product?.defaultStock || 0;
+    const price = product?.variants?.[0]?.price || product?.price || product?.defaultPrice || 0;
+    const stock = product?.stock || product?.defaultStock || 0;
 
     return (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
@@ -938,8 +938,8 @@ const CategoryLayout = () => {
                           currentPage <= 3
                             ? index + 1
                             : currentPage >= totalPages - 2
-                            ? totalPages - 4 + index
-                            : currentPage - 2 + index;
+                              ? totalPages - 4 + index
+                              : currentPage - 2 + index;
 
                         if (pageNumber > totalPages || pageNumber < 1) return null;
 

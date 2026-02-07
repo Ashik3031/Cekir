@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  slug: { type: String, required: true},
+  slug: { type: String, required: true },
   description: String,
   brand: String,
   category: {
@@ -13,9 +13,9 @@ const productSchema = new mongoose.Schema({
   tags: [String],
   options: [String],
   images: [String],
-  price: { type: Number, required: true },  
-  compareAtPrice: {type: Number,default: null,},
-  stock: { type: Number, required: true },  
+  price: { type: Number, required: true },
+  compareAtPrice: { type: Number, default: null, },
+  stock: { type: Number, required: true },
   isActive: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },
   seo: {
@@ -24,6 +24,15 @@ const productSchema = new mongoose.Schema({
     keywords: [String],
   },
   createdAt: { type: Date, default: Date.now },
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+productSchema.virtual('variants', {
+  ref: 'Variant',
+  localField: '_id',
+  foreignField: 'product'
 });
 
 module.exports = mongoose.models.Product || mongoose.model("Product", productSchema);

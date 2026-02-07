@@ -23,7 +23,7 @@ const NewArrivalCategory = () => {
     <section className="px-4 md:px-20 py-12 bg-white text-center">
       {/* Heading */}
       <h2 className="text-2xl md:text-3xl font-serif tracking-wider uppercase mb-12">
-        Explore the World of Al Marjaan
+        Explore the World of Cekir
       </h2>
 
       {/* Grid */}

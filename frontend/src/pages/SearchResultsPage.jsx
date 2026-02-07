@@ -12,12 +12,12 @@ export const SearchResultsPage = () => {
   const location = useLocation();
   const query = new URLSearchParams(location.search).get("query");
   const [searchResults, setSearchResults] = useState([]);
- 
-   const navigate = useNavigate();
-   const dispatch = useDispatch();
-   const wishlistItems = useSelector(selectWishlistItems);
 
-   const loggedInUser = useSelector(selectLoggedInUser);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const wishlistItems = useSelector(selectWishlistItems);
+
+  const loggedInUser = useSelector(selectLoggedInUser);
 
   useEffect(() => {
     const getSearchResults = async () => {
@@ -34,25 +34,25 @@ export const SearchResultsPage = () => {
 
     getSearchResults();
   }, [query]);
-  
 
-    const handleAddRemoveFromWishlist = (e, productId) => {
-      if (e.target.checked) {
-        if (!loggedInUser) {
-          navigate("/login");
-        } else {
-          const data = { user: loggedInUser._id, product: productId };
-          dispatch(createWishlistItemAsync(data));
-        }
+
+  const handleAddRemoveFromWishlist = (e, productId) => {
+    if (e.target.checked) {
+      if (!loggedInUser) {
+        navigate("/login");
       } else {
-        const index = wishlistItems.findIndex(
-          (item) => item.product._id === productId
-        );
-        if (index !== -1) {
-          dispatch(deleteWishlistItemByIdAsync(wishlistItems[index]._id));
-        }
+        const data = { user: loggedInUser._id, product: productId };
+        dispatch(createWishlistItemAsync(data));
       }
-    };
+    } else {
+      const index = wishlistItems.findIndex(
+        (item) => item.product._id === productId
+      );
+      if (index !== -1) {
+        dispatch(deleteWishlistItemByIdAsync(wishlistItems[index]._id));
+      }
+    }
+  };
 
   return (
     <>
@@ -74,13 +74,13 @@ export const SearchResultsPage = () => {
               <ProductCard
                 key={product._id}
                 id={product._id}
-                title={product.title}
-                price={product.price}
+                title={product.name || product.title}
+                price={product.variants?.[0]?.price || product.price}
                 thumbnail={product.thumbnail}
                 brand={product.brand}
                 stockQuantity={product.stockQuantity}
                 // Optional props for wishlist/admin use
-                 handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
+                handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
                 isWishlistCard={false}
                 isAdminCard={false}
               />

@@ -111,27 +111,27 @@ exports.getAll = async (req, res) => {
     }
 
 
-// Search
+    // Search
     const isSearch = !!req.query.search || !!req.query.query;;
     if (isSearch) {
       const searchTerm = req.query.search || req.query.query;
       const searchRegex = new RegExp(req.query.search, "i");
       filter.$or = [
-        { title: searchRegex },
+        { name: searchRegex },
       ];
     }
-    
+
 
     if (req.query.sort) {
       sort[req.query.sort] = req.query.order === "asc" ? 1 : -1;
     }
-// Pagination only when not searching
+    // Pagination only when not searching
     if (req.query.page && req.query.limit) {
-  const pageSize = parseInt(req.query.limit, 10) || 10;
-  const page = parseInt(req.query.page, 10) || 1;
-  skip = pageSize * (page - 1);
-  limit = pageSize;
-}
+      const pageSize = parseInt(req.query.limit, 10) || 10;
+      const page = parseInt(req.query.page, 10) || 1;
+      skip = pageSize * (page - 1);
+      limit = pageSize;
+    }
     // if (req.query.page && req.query.limit) {
     //   const pageSize = parseInt(req.query.limit, 10) || 10;
     //   const page = parseInt(req.query.page, 10) || 1;
@@ -140,27 +140,30 @@ exports.getAll = async (req, res) => {
     // }
 
     // const totalDocs = await Product.countDocuments(filter);
-//     const results = await Product.find(filter)
-//       .sort(sort)
-//       .skip(skip)
-//       .limit(limit || 10);
+    //     const results = await Product.find(filter)
+    //       .sort(sort)
+    //       .skip(skip)
+    //       .limit(limit || 10);
 
-//     res.set("X-Total-Count", totalDocs.toString());
-//     res.status(200).json(results);
-//   } catch (error) {
-//     console.error("Error fetching products:", error);
-//     res
-//       .status(500)
-//       .json({ message: "Error fetching products, please try again later" });
-//   }
-// };
+    //     res.set("X-Total-Count", totalDocs.toString());
+    //     res.status(200).json(results);
+    //   } catch (error) {
+    //     console.error("Error fetching products:", error);
+    //     res
+    //       .status(500)
+    //       .json({ message: "Error fetching products, please try again later" });
+    //   }
+    // };
 
-const totalDocs = await Product.countDocuments(filter);
-    const query = Product.find(filter).sort(sort);
+    const totalDocs = await Product.countDocuments(filter);
+    const query = Product.find(filter).sort(sort).populate({
+      path: "variants",
+      options: { sort: { price: 1 } }
+    });
 
     if (limit) {
-  query.skip(skip).limit(limit);
-}
+      query.skip(skip).limit(limit);
+    }
     const results = await query.exec();
 
     res.set("X-Total-Count", totalDocs.toString());
@@ -188,7 +191,7 @@ exports.getById = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const variants = await Variant.find({ product: id }).lean();
+    const variants = await Variant.find({ product: id }).sort({ price: 1 }).lean();
 
     return res.status(200).json({
       product,
@@ -413,7 +416,7 @@ exports.softdeleteById = async (req, res) => {
 };
 
 
-exports.deleteById  = async (req, res) => {
+exports.deleteById = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -431,9 +434,9 @@ exports.deleteById  = async (req, res) => {
       deletedProduct,
     });
   } catch (error) {
-    
+
     console.error("Error deleting product:", error);
-    res.status(500).json({ _id: id , message: "Server error", error: error.message });
+    res.status(500).json({ _id: id, message: "Server error", error: error.message });
   }
 };
 
@@ -494,7 +497,7 @@ exports.getLatestProducts = async (req, res) => {
   }
 };
 
-exports.featuredProduct = async (req, res) => { 
+exports.featuredProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const product = await Product.findById(id);
@@ -516,15 +519,15 @@ exports.featuredProduct = async (req, res) => {
 exports.getProductSuggestions = async (req, res) => {
   try {
     const { query } = req.params;
-   
+
     if (!query || query.trim().length < 2) {
       return res.json([]);
     }
     const suggestions = await Product.find({
-      title: { $regex: query, $options: "i" },
+      name: { $regex: query, $options: "i" },
     })
       .limit(5)
-      .select("title description");
+      .select("name description");
 
     res.json(suggestions);
   } catch (err) {
@@ -535,19 +538,19 @@ exports.getProductSuggestions = async (req, res) => {
 };
 
 
-exports.searchProducts = async (req, res) =>{
+exports.searchProducts = async (req, res) => {
   try {
     const query = req.query.q;
     console.log(query, "query");
-    if(!query) return res.status(400).json({ message: "Query is required" });
+    if (!query) return res.status(400).json({ message: "Query is required" });
 
     const products = await Product.find({
-      title: { $regex: query, $options: "i" },
+      name: { $regex: query, $options: "i" },
       isDeleted: false,
     });
 
     res.json(products);
-  }catch(error){
-    res.status(500).json({message:"Server error", error});
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error });
   }
 }

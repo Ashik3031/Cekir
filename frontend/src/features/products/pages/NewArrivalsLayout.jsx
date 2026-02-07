@@ -165,9 +165,9 @@ const NewArrivalsLayout = ({ isFilterOpen = false }) => {
                 >
                   <ProductCard
                     id={product._id}
-                    title={product.title}
+                    title={product.name || product.title}
                     thumbnail={product.thumbnail}
-                    price={product.price}
+                    price={product.variants?.[0]?.price || product.price}
                     handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
                     onClick={() => navigate(`/product-details/${product._id}`)}
                   />

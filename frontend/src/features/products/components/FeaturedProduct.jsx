@@ -97,11 +97,11 @@ export const ProductFeatured = () => {
               <Grid item key={product._id} xs={12} sm={6} md={4} lg={3}>
                 <ProductCard
                   id={product._id}
-                  title={product.title}
+                  title={product.name || product.title}
                   thumbnail={product.thumbnail}
                   description={product.description}
                   stockQuantity={product.stockQuantity}
-                  price={product.price}
+                  price={product.variants?.[0]?.price || product.price}
                   handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
                   onClick={() => navigate(`/product/${product._id}`)}
                 />
