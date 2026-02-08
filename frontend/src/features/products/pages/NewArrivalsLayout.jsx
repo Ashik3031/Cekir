@@ -152,27 +152,41 @@ const NewArrivalsLayout = ({ isFilterOpen = false }) => {
             </p>
           ) : products.length > 0 ? (
             <Grid container spacing={isMobile ? 1 : 2}>
-              {products.map((product) => (
-                <Grid
-                  item
-                  {...gridSizes}
-                  key={product._id}
-                  sx={{
-                    padding: isMobile ? "4px" : undefined,
-                    display: "flex",
-                    justifyContent: "center",
-                  }}
-                >
-                  <ProductCard
-                    id={product._id}
-                    title={product.name || product.title}
-                    thumbnail={product.thumbnail}
-                    price={product.variants?.[0]?.price || product.price}
-                    handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
-                    onClick={() => navigate(`/product-details/${product._id}`)}
-                  />
-                </Grid>
-              ))}
+              {products.map((product) => {
+                // Calculate display price with robust variant handling
+                let displayPrice = Number(product?.price || 0);
+                if (product?.variants?.length > 0) {
+                  const variantPrices = product.variants
+                    .map(v => Number(v.price))
+                    .filter(p => !isNaN(p) && p > 0);
+
+                  if (variantPrices.length > 0) {
+                    displayPrice = Math.min(...variantPrices);
+                  }
+                }
+
+                return (
+                  <Grid
+                    item
+                    {...gridSizes}
+                    key={product._id}
+                    sx={{
+                      padding: isMobile ? "4px" : undefined,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <ProductCard
+                      id={product._id}
+                      title={product.name || product.title}
+                      thumbnail={product.thumbnail || product.images?.[0]}
+                      price={displayPrice}
+                      handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
+                      onClick={() => navigate(`/product-details/${product._id}`)}
+                    />
+                  </Grid>
+                );
+              })}
             </Grid>
           ) : (
             <Stack

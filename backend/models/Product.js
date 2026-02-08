@@ -26,7 +26,8 @@ const productSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 }, {
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
+  timestamps: true // explicit timestamps
 });
 
 productSchema.virtual('variants', {

@@ -70,21 +70,24 @@ export const SearchResultsPage = () => {
 
         {searchResults.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {searchResults.map((product) => (
-              <ProductCard
-                key={product._id}
-                id={product._id}
-                title={product.name || product.title}
-                price={product.variants?.[0]?.price || product.price}
-                thumbnail={product.thumbnail}
-                brand={product.brand}
-                stockQuantity={product.stockQuantity}
-                // Optional props for wishlist/admin use
-                handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
-                isWishlistCard={false}
-                isAdminCard={false}
-              />
-            ))}
+            {searchResults.map((product) => {
+              const displayPrice = product.variants?.[0]?.price || product.price || 0;
+
+              return (
+                <ProductCard
+                  key={product._id}
+                  id={product._id}
+                  title={product.name || product.title}
+                  price={displayPrice}
+                  thumbnail={product.thumbnail || product.images?.[0]}
+                  brand={product.brand}
+                  stockQuantity={product.stockQuantity}
+                  handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
+                  isWishlistCard={false}
+                  isAdminCard={false}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">

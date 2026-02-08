@@ -63,11 +63,11 @@ const FeaturedProductGrid = ({ currentProductId }) => {
         More products from {currentProduct.category.name}
         {currentProduct.subcategory?.name && ` > ${currentProduct.subcategory.name}`}
       </Typography>
-      
+
       <Grid container spacing={4}>
         {filteredProducts.slice(0, 8).map((product) => {
           // Enhanced image selection logic
-          const image = 
+          const image =
             product.variants?.[0]?.images?.[0] || // First variant's first image
             product.images?.[0] || // Product's first image
             product.defaultImages?.[0] || // Default image
@@ -75,24 +75,23 @@ const FeaturedProductGrid = ({ currentProductId }) => {
 
           // Enhanced pricing logic
           const hasVariants = product.variants && product.variants.length > 0;
-          let displayPrice, compareAtPrice, hasDiscount = false, discountPercentage = 0;
+          const variantPrices = (product.variants || []).map(v => Number(v.price)).filter(p => p > 0);
+          const minPrice = Math.min(Number(product.price) || Infinity, ...variantPrices);
+          const displayPrice = minPrice === Infinity ? Number(product.price) || 0 : minPrice;
 
-          if (hasVariants) {
-            // Find the lowest priced variant
-            const lowestPriceVariant = product.variants.reduce((lowest, variant) => 
-              variant.price < lowest.price ? variant : lowest
-            );
-            displayPrice = lowestPriceVariant.price;
-            compareAtPrice = lowestPriceVariant.compareAtPrice;
-          } else {
-            displayPrice = product.price;
-            compareAtPrice = product.compareAtPrice;
+          let compareAtPrice = product.compareAtPrice;
+          if (product.variants && product.variants.length > 0) {
+            // Use the compareAtPrice of the variant that gives the displayPrice, 
+            // or just use the product's default compareAtPrice.
+            const matchingVariant = product.variants.find(v => Number(v.price) === displayPrice);
+            if (matchingVariant?.compareAtPrice) compareAtPrice = matchingVariant.compareAtPrice;
           }
 
-          // Calculate discount
-          if (compareAtPrice && compareAtPrice > displayPrice) {
+          let hasDiscount = false;
+          let discountPercentage = 0;
+          if (compareAtPrice && Number(compareAtPrice) > displayPrice) {
             hasDiscount = true;
-            discountPercentage = Math.round(((compareAtPrice - displayPrice) / compareAtPrice) * 100);
+            discountPercentage = Math.round(((Number(compareAtPrice) - displayPrice) / Number(compareAtPrice)) * 100);
           }
 
           return (
@@ -132,46 +131,47 @@ const FeaturedProductGrid = ({ currentProductId }) => {
                 )}
 
                 {/* Stock Badge */}
-                {((hasVariants && product.variants.every(v => v.stock === 0)) || 
+                {((hasVariants && product.variants.every(v => v.stock === 0)) ||
                   (!hasVariants && product.stock === 0)) && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      bgcolor: "grey.600",
-                      color: "white",
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      fontSize: "0.75rem",
-                      fontWeight: "bold",
-                      zIndex: 1,
-                    }}
-                  >
-                    Out of Stock
-                  </Box>
-                )}
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        bgcolor: "grey.600",
+                        color: "white",
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        fontSize: "0.75rem",
+                        fontWeight: "bold",
+                        zIndex: 1,
+                      }}
+                    >
+                      Out of Stock
+                    </Box>
+                  )}
 
                 <CardMedia
                   component="img"
                   height="240"
                   image={image}
-                  alt={product.name}
-                  sx={{ 
-                    objectFit: "cover", 
-                    borderTopLeftRadius: 12, 
+                  alt={product.name || product.title || "Product"}
+                  onError={(e) => { e.target.src = "/placeholder.png" }}
+                  sx={{
+                    objectFit: "cover",
+                    borderTopLeftRadius: 12,
                     borderTopRightRadius: 12,
-                    filter: ((hasVariants && product.variants.every(v => v.stock === 0)) || 
-                            (!hasVariants && product.stock === 0)) ? "grayscale(50%)" : "none"
+                    filter: ((hasVariants && product.variants.every(v => v.stock === 0)) ||
+                      (!hasVariants && product.stock === 0)) ? "grayscale(50%)" : "none"
                   }}
                 />
-                
+
                 <CardContent sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
                   <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
                     {product.name}
                   </Typography>
-                  
+
                   <Typography variant="body2" color="text.secondary" gutterBottom sx={{ flexGrow: 1 }}>
                     {product.description?.slice(0, 60)}{product.description?.length > 60 ? "..." : ""}
                   </Typography>
@@ -189,10 +189,10 @@ const FeaturedProductGrid = ({ currentProductId }) => {
                       <Typography variant="h6" fontWeight="bold" color="primary">
                         AED {displayPrice?.toFixed(2)}
                       </Typography>
-                      
+
                       {hasDiscount && (
-                        <Typography 
-                          variant="body2" 
+                        <Typography
+                          variant="body2"
                           sx={{ textDecoration: "line-through", color: "text.secondary" }}
                         >
                           AED {compareAtPrice?.toFixed(2)}
@@ -223,7 +223,7 @@ const FeaturedProductGrid = ({ currentProductId }) => {
                     variant="outlined"
                     size="small"
                     fullWidth
-                    sx={{ 
+                    sx={{
                       mt: "auto",
                       borderRadius: 2,
                       "&:hover": {

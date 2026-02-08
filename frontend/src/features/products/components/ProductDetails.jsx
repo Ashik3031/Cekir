@@ -26,7 +26,7 @@ export const ProductDetails = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  
+
 
   const product = useSelector(selectSelectedProduct);
   const variants = useSelector(selectVariants);
@@ -39,30 +39,30 @@ export const ProductDetails = () => {
   const [selectedOptions, setSelectedOptions] = useState({});
   const [isFavorite, setIsFavorite] = useState(false);
 
-    const hasVariants = variants && variants.length > 0;
+  const hasVariants = variants && variants.length > 0;
 
 
   const uniqueColors = [
-    ...new Map(variants.map((v) => [v.optionValues.Color, v.images?.[0]])).entries(),
-  ];
+    ...new Map(variants.map((v) => [v.optionValues?.Color, v.images?.[0]])).entries(),
+  ].filter(([color]) => !!color);
   const uniqueSizes = [...new Set(variants.map((v) => v.optionValues.Size).filter(Boolean))];
 
   useEffect(() => {
     if (!variants.length) return;
-    
+
     // Auto-select options if there's only one variant or one option per type
     const autoSelectOptions = {};
-    
+
     // Auto-select color if there's only one color
     if (uniqueColors.length === 1) {
       autoSelectOptions.Color = uniqueColors[0][0];
     }
-    
+
     // Auto-select size if there's only one size
     if (uniqueSizes.length === 1) {
       autoSelectOptions.Size = uniqueSizes[0];
     }
-    
+
     // If there's only one variant total, auto-select it
     if (variants.length === 1) {
       const singleVariant = variants[0];
@@ -73,12 +73,12 @@ export const ProductDetails = () => {
         autoSelectOptions.Size = singleVariant.optionValues.Size;
       }
     }
-    
+
     // Update selectedOptions if we have auto-selections and nothing is currently selected
     if (Object.keys(autoSelectOptions).length > 0 && Object.keys(selectedOptions).length === 0) {
       setSelectedOptions(autoSelectOptions);
     }
-    
+
     const variant = variants.find((v) =>
       (!selectedOptions.Color || v.optionValues.Color === selectedOptions.Color) &&
       (!selectedOptions.Size || v.optionValues.Size === selectedOptions.Size)
@@ -86,7 +86,7 @@ export const ProductDetails = () => {
     if (variant) {
       dispatch(setSelectedVariant(variant));
       setSelectedImageIndex(0);
-    } else { 
+    } else {
       dispatch(setSelectedVariant(null));
     }
   }, [selectedOptions, variants, dispatch, uniqueColors.length, uniqueSizes.length]);
@@ -113,12 +113,14 @@ export const ProductDetails = () => {
   const imagesToShow =
     selectedVariant?.images?.length > 0 ? selectedVariant.images : product.images || [];
 
-  // ✅ Fixed pricing logic - get current values based on selected variant
-  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
-  const currentCompareAtPrice = selectedVariant
-    ? selectedVariant.compareAtPrice
-    : product.compareAtPrice;
-  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+  // ✅ Simplified pricing logic - prioritize first variant as default
+  // ✅ Simplified pricing logic - prioritize first variant as default
+  // Sort variants to ensure lowest price is default
+  const sortedVariants = variants ? [...variants].sort((a, b) => Number(a.price) - Number(b.price)) : [];
+  const defaultVariant = sortedVariants?.[0];
+  const currentPrice = selectedVariant?.price || defaultVariant?.price || product.price;
+  const currentCompareAtPrice = selectedVariant?.compareAtPrice || defaultVariant?.compareAtPrice || product.compareAtPrice;
+  const currentStock = selectedVariant ? selectedVariant.stock : (defaultVariant?.stock ?? product.stock);
   const isInStock = currentStock > 0;
 
   // ✅ Fixed discount calculation logic
@@ -126,20 +128,21 @@ export const ProductDetails = () => {
   const numericPrice = Number(currentPrice);
 
   // Discount exists when compareAtPrice is higher than current price
-  const hasDiscount = numericCompareAt && numericCompareAt > numericPrice;
+  const hasDiscount = !!(numericCompareAt && numericCompareAt > numericPrice);
   const discountPercentage = hasDiscount
     ? Math.round(((numericCompareAt - numericPrice) / numericCompareAt) * 100)
     : 0;
+
   const savings = hasDiscount
     ? (numericCompareAt - numericPrice).toFixed(2)
-    : 0;
+    : "0.00";
 
-    const isInCart = hasVariants
+  const isInCart = hasVariants
     ? (!!selectedVariant &&
-        cartItems.some((item) => item?.variant?._id === selectedVariant._id))
+      cartItems.some((item) => item?.variant?._id === selectedVariant._id))
     : cartItems.some((item) => item?.product?._id === product._id);
 
-    const handleAddToCart = () => {
+  const handleAddToCart = () => {
     if (!loggedInUser) return navigate("/login");
     if (!isInStock) return toast.error("Out of Stock");
 
@@ -194,7 +197,7 @@ export const ProductDetails = () => {
   };
 
   // Helper function to check if Add to Cart should be disabled
-    const isAddToCartDisabled = () => {
+  const isAddToCartDisabled = () => {
     // If there ARE variants, enforce option selection
     if (hasVariants) {
       // If there are multiple colors and none selected
@@ -226,11 +229,10 @@ export const ProductDetails = () => {
                   <div
                     key={idx}
                     onClick={() => setSelectedImageIndex(idx)}
-                    className={`w-16 h-16 rounded-lg overflow-hidden cursor-pointer border-2 ${
-                      idx === selectedImageIndex
-                        ? "border-black shadow-md"
-                        : "border-gray-200 hover:border-gray-400"
-                    }`}
+                    className={`w-16 h-16 rounded-lg overflow-hidden cursor-pointer border-2 ${idx === selectedImageIndex
+                      ? "border-black shadow-md"
+                      : "border-gray-200 hover:border-gray-400"
+                      }`}
                   >
                     <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
                   </div>
@@ -302,22 +304,26 @@ export const ProductDetails = () => {
                   {hasDiscount ? (
                     <>
                       <span className="text-4xl font-bold text-gray-900">
-                        AED {numericPrice?.toFixed(2)}
+                        AED {(numericPrice || 0).toFixed(2)}
                       </span>
-                      <span className="text-m text-gray-500 line-through">
-                        AED {numericCompareAt?.toFixed(2)}
-                      </span>
-                      <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full animate-pulse">
-                        {discountPercentage}% OFF
-                      </span>
+                      {numericCompareAt > 0 && (
+                        <span className="text-m text-gray-500 line-through">
+                          AED {numericCompareAt.toFixed(2)}
+                        </span>
+                      )}
+                      {discountPercentage > 0 && (
+                        <span className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full animate-pulse">
+                          {discountPercentage}% OFF
+                        </span>
+                      )}
                     </>
                   ) : (
                     <span className="text-4xl font-bold text-gray-900">
-                      AED {numericPrice?.toFixed(2)}
+                      AED {(numericPrice || 0).toFixed(2)}
                     </span>
                   )}
                 </div>
-                
+
                 {hasDiscount && (
                   <div className="space-y-1">
                     <p className="text-green-600 text-lg font-semibold">
@@ -328,7 +334,7 @@ export const ProductDetails = () => {
                     </p>
                   </div>
                 )}
-                
+
                 {!hasDiscount && (
                   <p className="text-sm text-gray-600">
                     Best price guaranteed
@@ -341,7 +347,7 @@ export const ProductDetails = () => {
                 <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStockStatusClass()}`}>
                   {getStockStatusMessage()}
                 </div>
-                
+
               </div>
 
               {/* User Only Options */}
@@ -366,17 +372,20 @@ export const ProductDetails = () => {
                                   Color: opts.Color === color ? undefined : color,
                                 }))
                               }
-                              className={`w-16 h-16 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                                selectedOptions.Color === color
-                                  ? "border-black scale-105 shadow-lg"
-                                  : "border-gray-200 hover:border-gray-400"
-                              }`}
+                              className={`w-16 h-16 rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${selectedOptions.Color === color
+                                ? "border-black scale-105 shadow-lg"
+                                : "border-gray-200 hover:border-gray-400"
+                                }`}
                             >
-                              <img src={img} alt={color} className="w-full h-full object-cover" />
+                              <img
+                                src={img || "/placeholder.jpg"}
+                                alt={color}
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.src = "/placeholder.jpg" }}
+                              />
                             </div>
-                            <span className={`text-xs mt-1 block ${
-                              selectedOptions.Color === color ? 'font-semibold' : 'text-gray-600'
-                            }`}>
+                            <span className={`text-xs mt-1 block ${selectedOptions.Color === color ? 'font-semibold' : 'text-gray-600'
+                              }`}>
                               {color}
                             </span>
                           </div>
@@ -397,12 +406,12 @@ export const ProductDetails = () => {
                       <div className="grid grid-cols-3 gap-3">
                         {uniqueSizes.map((size) => {
                           // Check if this size is available for the selected color
-                          const sizeVariant = variants.find(v => 
-                            v.optionValues.Size === size && 
+                          const sizeVariant = variants.find(v =>
+                            v.optionValues.Size === size &&
                             (!selectedOptions.Color || v.optionValues.Color === selectedOptions.Color)
                           );
                           const isSizeAvailable = sizeVariant && sizeVariant.stock > 0;
-                          
+
                           return (
                             <button
                               key={size}
@@ -415,13 +424,12 @@ export const ProductDetails = () => {
                                 }
                               }}
                               disabled={!isSizeAvailable}
-                              className={`py-3 px-4 border rounded-lg text-sm font-medium transition-all ${
-                                selectedOptions.Size === size
-                                  ? "bg-black text-white border-black shadow-md"
-                                  : isSizeAvailable
+                              className={`py-3 px-4 border rounded-lg text-sm font-medium transition-all ${selectedOptions.Size === size
+                                ? "bg-black text-white border-black shadow-md"
+                                : isSizeAvailable
                                   ? "border-gray-300 text-gray-700 hover:border-gray-500 hover:bg-gray-50"
                                   : "border-gray-200 text-gray-400 cursor-not-allowed bg-gray-100"
-                              }`}
+                                }`}
                             >
                               {size}
                               {!isSizeAvailable && <span className="block text-xs">Out of Stock</span>}
@@ -436,21 +444,20 @@ export const ProductDetails = () => {
                   <button
                     onClick={handleAddToCart}
                     disabled={isAddToCartDisabled()}
-                    className={`w-full py-4 rounded-full text-lg font-semibold transition-all ${
-                      isAddToCartDisabled()
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : hasDiscount
+                    className={`w-full py-4 rounded-full text-lg font-semibold transition-all ${isAddToCartDisabled()
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : hasDiscount
                         ? "bg-red-600 text-white hover:bg-red-700 shadow-lg"
                         : "bg-black text-white hover:bg-gray-800"
-                    }`}
+                      }`}
                   >
-                    {isInCart 
-                      ? "✓ Already in Cart" 
-                      : !isInStock 
-                      ? "Out of Stock" 
-                      : hasDiscount
-                      ? `Add to Cart - Save AED ${savings}!`
-                      : "Add to Cart"
+                    {isInCart
+                      ? "✓ Already in Cart"
+                      : !isInStock
+                        ? "Out of Stock"
+                        : hasDiscount
+                          ? `Add to Cart - Save AED ${savings}!`
+                          : "Add to Cart"
                     }
                   </button>
                 </>
@@ -485,13 +492,13 @@ export const ProductDetails = () => {
                         <p><strong>Price:</strong> AED {selectedVariant.price?.toFixed(2)}</p>
                         <p><strong>Compare At Price:</strong> AED {selectedVariant.compareAtPrice?.toFixed(2) || "N/A"}</p>
                         <p><strong>Stock:</strong> {selectedVariant.stock}</p>
-                      
+
                       </div>
                     )}
                   </div>
                 </div>
               )}
-              
+
               {loggedInUser?.isAdmin && variants.length > 0 && (
                 <div className="mt-8 border-t pt-6">
                   <h2 className="text-lg font-semibold mb-4">Variant Details</h2>
@@ -519,7 +526,7 @@ export const ProductDetails = () => {
                             : 0;
                           const variantSavings = variantHasDiscount ? (v.compareAtPrice - v.price).toFixed(2) : 0;
                           const isSelectedVariant = selectedVariant && selectedVariant._id === v._id;
-                          
+
                           return (
                             <tr key={v._id} className={`${isLow ? "bg-yellow-50" : ""} ${isSelectedVariant ? "bg-blue-50 border-blue-200" : ""}`}>
                               <td className="border px-4 py-2">
@@ -560,13 +567,12 @@ export const ProductDetails = () => {
                               </td>
                               <td className="border px-4 py-2">
                                 <span
-                                  className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                                    v.stock === 0
-                                      ? "bg-red-100 text-red-700"
-                                      : isLow
+                                  className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${v.stock === 0
+                                    ? "bg-red-100 text-red-700"
+                                    : isLow
                                       ? "bg-yellow-100 text-yellow-700"
                                       : "bg-green-100 text-green-700"
-                                  }`}
+                                    }`}
                                 >
                                   {v.stock} {v.stock === 0 ? "(Out of Stock)" : isLow ? "(Low)" : ""}
                                 </span>
@@ -585,7 +591,7 @@ export const ProductDetails = () => {
           </div>
         </div>
       </div>
-       <FeaturedProductGrid currentProductId={product._id} />
+      <FeaturedProductGrid currentProductId={product._id} />
     </div>
   );
 };

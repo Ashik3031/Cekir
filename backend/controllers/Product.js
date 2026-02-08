@@ -451,6 +451,10 @@ exports.getFeaturedProducts = async (req, res) => {
       isFeatured: true,
       isDeleted: { $ne: true },
     })
+      .populate({
+        path: "variants",
+        options: { sort: { price: 1 } }
+      })
       .skip(startIndex)
       .limit(limit);
 
@@ -487,6 +491,10 @@ exports.getLatestProducts = async (req, res) => {
 
     const products = await Product.find({ category: categoryId })
       .sort({ createdAt: -1 })
+      .populate({
+        path: "variants",
+        options: { sort: { price: 1 } }
+      })
       .limit(10);
     res.json(products);
   } catch (err) {
@@ -547,6 +555,9 @@ exports.searchProducts = async (req, res) => {
     const products = await Product.find({
       name: { $regex: query, $options: "i" },
       isDeleted: false,
+    }).populate({
+      path: "variants",
+      options: { sort: { price: 1 } }
     });
 
     res.json(products);

@@ -93,20 +93,26 @@ export const ProductFeatured = () => {
       ) : (
         <>
           <Grid container spacing={is700 ? 1 : 3}>
-            {featuredProducts.map((product) => (
-              <Grid item key={product._id} xs={12} sm={6} md={4} lg={3}>
-                <ProductCard
-                  id={product._id}
-                  title={product.name || product.title}
-                  thumbnail={product.thumbnail}
-                  description={product.description}
-                  stockQuantity={product.stockQuantity}
-                  price={product.variants?.[0]?.price || product.price}
-                  handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
-                  onClick={() => navigate(`/product/${product._id}`)}
-                />
-              </Grid>
-            ))}
+            {featuredProducts.map((product) => {
+              const variantPrices = (product.variants || []).map(v => Number(v.price)).filter(p => p > 0);
+              const minPrice = Math.min(Number(product.price) || Infinity, ...variantPrices);
+              const displayPrice = minPrice === Infinity ? Number(product.price) || 0 : minPrice;
+
+              return (
+                <Grid item key={product._id} xs={12} sm={6} md={4} lg={3}>
+                  <ProductCard
+                    id={product._id}
+                    title={product.name || product.title}
+                    thumbnail={product.thumbnail || product.images?.[0]}
+                    description={product.description}
+                    stockQuantity={product.stockQuantity}
+                    price={displayPrice}
+                    handleAddRemoveFromWishlist={handleAddRemoveFromWishlist}
+                    onClick={() => navigate(`/product/${product._id}`)}
+                  />
+                </Grid>
+              );
+            })}
           </Grid>
 
           {/* Pagination */}

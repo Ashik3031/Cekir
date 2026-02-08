@@ -114,10 +114,16 @@ const CustomProductCard = ({
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   const defaultImage = product?.images?.[0] || "/placeholder-image.jpg";
   const stock = product?.defaultStock ?? product?.stock ?? 0;
-  const price = product?.defaultPrice ?? product?.price ?? 0;
+
+  // Calculate display price (lowest variant price or product price)
+  const variants = product?.variants || [];
+  const variantPrices = variants.map(v => Number(v.price)).filter(p => p > 0);
+  const minPrice = variantPrices.length > 0 ? Math.min(...variantPrices) : (product?.defaultPrice ?? product?.price ?? 0);
+  const price = minPrice;
+  const hasVariants = variants.length > 0;
 
   const handleCardClick = () => {
     if (product?._id) {
@@ -183,7 +189,7 @@ const CustomProductCard = ({
                   >
                     {product.name}
                   </Typography>
-                  
+
                   <Typography
                     variant="body2"
                     color="text.secondary"
@@ -204,51 +210,52 @@ const CustomProductCard = ({
                     fontWeight="bold"
                     gutterBottom
                   >
+                    {hasVariants && <span style={{ fontSize: '0.8em', marginRight: '4px' }}>From</span>}
                     AED {price.toLocaleString()}
                   </Typography>
 
                   {/* Status Badges */}
                   <Stack direction="row" spacing={1} flexWrap="wrap" mb={2}>
                     {product.isFeatured && (
-                      <Chip 
+                      <Chip
                         icon={<StarIcon />}
-                        label="Featured" 
-                        color="primary" 
-                        size="small" 
+                        label="Featured"
+                        color="primary"
+                        size="small"
                         variant="filled"
                       />
                     )}
                     {product.isDeleted ? (
-                      <Chip 
+                      <Chip
                         icon={<VisibilityOffIcon />}
-                        label="Hidden" 
-                        color="error" 
-                        size="small" 
+                        label="Hidden"
+                        color="error"
+                        size="small"
                         variant="filled"
                       />
                     ) : (
-                      <Chip 
+                      <Chip
                         icon={<VisibilityIcon />}
-                        label="Active" 
-                        color="success" 
-                        size="small" 
+                        label="Active"
+                        color="success"
+                        size="small"
                         variant="filled"
                       />
                     )}
-                    <Chip 
+                    <Chip
                       icon={<InventoryIcon />}
                       label={`Stock: ${stock}`}
                       color={stock > 0 ? "info" : "warning"}
-                      size="small" 
+                      size="small"
                       variant="outlined"
                     />
                   </Stack>
                 </Box>
 
                 {/* Action Buttons */}
-                <Stack 
-                  direction={{ xs: 'column', sm: 'row' }} 
-                  spacing={1} 
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={1}
                   mt="auto"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -328,7 +335,7 @@ const CustomProductCard = ({
         position: 'relative'
       }}
     >
-      <CardActionArea 
+      <CardActionArea
         onClick={handleCardClick}
         sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
       >
@@ -363,7 +370,7 @@ const CustomProductCard = ({
                 label="Featured"
                 color="primary"
                 size="small"
-                sx={{ 
+                sx={{
                   bgcolor: 'rgba(25, 118, 210, 0.9)',
                   color: 'white',
                   fontWeight: 'bold'
@@ -375,7 +382,7 @@ const CustomProductCard = ({
                 label="Hidden"
                 color="error"
                 size="small"
-                sx={{ 
+                sx={{
                   bgcolor: 'rgba(211, 47, 47, 0.9)',
                   color: 'white',
                   fontWeight: 'bold'
@@ -383,7 +390,7 @@ const CustomProductCard = ({
               />
             )}
           </Box>
-          
+
           {/* Stock Indicator */}
           <Box
             sx={{
@@ -396,7 +403,7 @@ const CustomProductCard = ({
               label={stock > 0 ? `${stock} in stock` : 'Out of stock'}
               color={stock > 0 ? "success" : "error"}
               size="small"
-              sx={{ 
+              sx={{
                 bgcolor: stock > 0 ? 'rgba(46, 125, 50, 0.9)' : 'rgba(211, 47, 47, 0.9)',
                 color: 'white',
                 fontWeight: 'bold'
@@ -451,12 +458,13 @@ const CustomProductCard = ({
             fontWeight="bold"
             sx={{ mb: 2 }}
           >
+            {hasVariants && <span style={{ fontSize: '0.8em', marginRight: '4px' }}>From</span>}
             AED {price.toLocaleString()}
           </Typography>
 
           {/* Action Buttons */}
-          <Stack 
-            spacing={1} 
+          <Stack
+            spacing={1}
             onClick={(e) => e.stopPropagation()}
             sx={{ mt: 'auto' }}
           >
@@ -468,7 +476,7 @@ const CustomProductCard = ({
                 size="small"
                 startIcon={<EditIcon />}
                 fullWidth
-                sx={{ 
+                sx={{
                   fontWeight: 'bold',
                   borderRadius: 2
                 }}
@@ -490,7 +498,7 @@ const CustomProductCard = ({
                 {product.isDeleted ? "Show" : "Hide"}
               </Button>
             </Stack>
-            
+
             <Stack direction="row" spacing={1}>
               <Button
                 onClick={(e) => {
@@ -780,16 +788,16 @@ export const AdminDashBoard = () => {
             Filter Products
           </Typography>
           <Stack direction="row" spacing={1}>
-            <IconButton 
-              size="small" 
-              onClick={clearAllFilters} 
+            <IconButton
+              size="small"
+              onClick={clearAllFilters}
               title="Reset filters"
               sx={{ color: 'white' }}
             >
               <RefreshIcon />
             </IconButton>
-            <IconButton 
-              size="small" 
+            <IconButton
+              size="small"
               onClick={handleFilterToggle}
               sx={{ color: 'white' }}
             >
@@ -910,7 +918,7 @@ export const AdminDashBoard = () => {
 
           {/* Category Filters */}
           <Accordion defaultExpanded sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-            <AccordionSummary 
+            <AccordionSummary
               expandIcon={<ExpandMoreIcon />}
               sx={{ borderRadius: 2 }}
             >
@@ -1059,7 +1067,7 @@ export const AdminDashBoard = () => {
                 backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.4"%3E%3Ccircle cx="30" cy="30" r="4"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
               }}
             />
-            
+
             <Stack spacing={3} position="relative">
               <Stack
                 direction={{ xs: "column", md: "row" }}
@@ -1071,7 +1079,7 @@ export const AdminDashBoard = () => {
                   <Typography
                     variant={isXS ? "h4" : "h3"}
                     fontWeight="bold"
-                    sx={{ 
+                    sx={{
                       mb: 1,
                       textShadow: '0 2px 4px rgba(0,0,0,0.3)'
                     }}
@@ -1082,13 +1090,13 @@ export const AdminDashBoard = () => {
                     Manage your product inventory with ease
                   </Typography>
                 </Box>
-                
+
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Badge badgeContent={activeFilterCount} color="error">
                     <Button
                       variant="contained"
                       onClick={handleFilterToggle}
-                      sx={{ 
+                      sx={{
                         display: { xs: "none", md: "inline-flex" },
                         bgcolor: 'rgba(255,255,255,0.2)',
                         '&:hover': {
@@ -1174,7 +1182,7 @@ export const AdminDashBoard = () => {
                         }
                       }}
                     />
-                    
+
                     {/* Sort */}
                     <FormControl size="small" sx={{ minWidth: 200 }}>
                       <InputLabel>Sort By</InputLabel>
@@ -1245,7 +1253,7 @@ export const AdminDashBoard = () => {
                         color="secondary"
                         onClick={clearAllFilters}
                         startIcon={<ClearIcon />}
-                        sx={{ 
+                        sx={{
                           fontWeight: 'bold',
                           borderRadius: 2
                         }}
@@ -1288,9 +1296,9 @@ export const AdminDashBoard = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <Paper 
-                  sx={{ 
-                    p: { xs: 4, sm: 8 }, 
+                <Paper
+                  sx={{
+                    p: { xs: 4, sm: 8 },
                     textAlign: "center",
                     borderRadius: 3,
                     background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
@@ -1308,14 +1316,14 @@ export const AdminDashBoard = () => {
                     No products found
                   </Typography>
                   <Typography variant="body1" color="text.secondary" mb={4}>
-                    {activeFilterCount > 0 
-                      ? "Try adjusting your filters or search terms." 
+                    {activeFilterCount > 0
+                      ? "Try adjusting your filters or search terms."
                       : "Start by adding your first product to the inventory."
                     }
                   </Typography>
-                  <Stack 
-                    direction={{ xs: 'column', sm: 'row' }} 
-                    spacing={2} 
+                  <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={2}
                     justifyContent="center"
                   >
                     {activeFilterCount > 0 ? (
@@ -1373,7 +1381,7 @@ export const AdminDashBoard = () => {
                       >
                         <CustomProductCard
                           product={product}
-                          onEdit={() => {}}
+                          onEdit={() => { }}
                           onToggleVisibility={handleToggleVisibility}
                           onToggleFeatured={handleToggleFeatured}
                           onDelete={handleDeleteClick}
@@ -1424,10 +1432,10 @@ export const AdminDashBoard = () => {
       </Container>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog 
-        open={openDialog} 
-        onClose={cancelDelete} 
-        maxWidth="sm" 
+      <Dialog
+        open={openDialog}
+        onClose={cancelDelete}
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: { borderRadius: 3 }
@@ -1447,16 +1455,16 @@ export const AdminDashBoard = () => {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button 
+          <Button
             onClick={cancelDelete}
             variant="outlined"
             sx={{ borderRadius: 2 }}
           >
             Cancel
           </Button>
-          <Button 
-            onClick={confirmDelete} 
-            color="error" 
+          <Button
+            onClick={confirmDelete}
+            color="error"
             variant="contained"
             startIcon={<DeleteIcon />}
             sx={{ borderRadius: 2 }}

@@ -559,7 +559,17 @@ const CategoryLayout = () => {
     // safe early return AFTER any hooks (we don't have hooks here now)
     if (!product) return null;
 
-    const price = product?.variants?.[0]?.price || product?.price || product?.defaultPrice || 0;
+    // Calculate display price with robust variant handling
+    let displayPrice = Number(product?.price || 0);
+    if (product?.variants?.length > 0) {
+      const variantPrices = product.variants
+        .map(v => Number(v.price))
+        .filter(p => !isNaN(p) && p > 0);
+
+      if (variantPrices.length > 0) {
+        displayPrice = Math.min(...variantPrices);
+      }
+    }
     const stock = product?.stock || product?.defaultStock || 0;
 
     return (
@@ -579,7 +589,7 @@ const CategoryLayout = () => {
               component="img"
               height="400"
               image={product?.images?.[0] || "/placeholder.jpg"}
-              alt={product?.title || product?.name || "Product"}
+              alt={product?.name || product?.title || "Product"}
               sx={{
                 objectFit: "cover",
                 aspectRatio: "3/4",
@@ -641,7 +651,7 @@ const CategoryLayout = () => {
                 color: "#000",
               }}
             >
-              {product?.title || product?.name || "Untitled Product"}
+              {product?.name || product?.title || "Untitled Product"}
             </Typography>
 
             <Typography
@@ -659,7 +669,7 @@ const CategoryLayout = () => {
             </Typography>
 
             <Typography variant="body2" sx={{ fontWeight: 500, color: "#000", fontSize: "14px" }}>
-              AED {price.toLocaleString()}
+              AED {displayPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </Typography>
           </Box>
         </Box>

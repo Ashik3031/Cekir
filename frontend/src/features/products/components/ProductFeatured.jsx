@@ -11,8 +11,17 @@ const ProductFeatured = () => {
   const [selectedCategoryName, setSelectedCategoryName] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const loggedInUser = useSelector(selectLoggedInUser);
   const navigate = useNavigate();
+
+  // 🔹 Helper: Always return FIRST variant price
+  const getFirstVariantPrice = (product) => {
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      return product.variants[0].price;
+    }
+    return product.price || "N/A";
+  };
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -34,6 +43,7 @@ const ProductFeatured = () => {
           selectedCategoryId === "ALL"
             ? await axiosi.get("/products")
             : await axiosi.get(`/products?category=${selectedCategoryId}`);
+
         setProducts(res.data);
         setError(null);
       } catch (err) {
@@ -68,23 +78,22 @@ const ProductFeatured = () => {
       <div className="flex flex-wrap justify-center gap-6 text-xs md:text-sm font-semibold uppercase tracking-wider mb-10">
         <button
           onClick={() => handleCategoryChange("ALL", "ALL")}
-          className={`transition-colors duration-300 px-3 py-1 rounded-full ${
-            selectedCategoryId === "ALL"
+          className={`px-3 py-1 rounded-full transition-colors duration-300 ${selectedCategoryId === "ALL"
               ? "bg-black text-white shadow-lg"
               : "text-gray-700 hover:text-black"
-          }`}
+            }`}
         >
           See All
         </button>
+
         {categories.map((cat) => (
           <button
             key={cat._id}
             onClick={() => handleCategoryChange(cat._id, cat.name)}
-            className={`transition-colors duration-300 px-3 py-1 rounded-full ${
-              selectedCategoryId === cat._id
+            className={`px-3 py-1 rounded-full transition-colors duration-300 ${selectedCategoryId === cat._id
                 ? "bg-black text-white shadow-lg"
                 : "text-gray-700 hover:text-black"
-            }`}
+              }`}
           >
             {cat.name}
           </button>
@@ -102,61 +111,44 @@ const ProductFeatured = () => {
             {displayedProducts.map((product) => (
               <div
                 key={product._id}
-                className="cursor-pointer bg-white rounded-3xl shadow-md hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 ease-in-out flex flex-col overflow-hidden"
-                aria-label={`Product: ${product.title}`}
+                className="bg-white rounded-3xl shadow-md hover:shadow-2xl transform hover:-translate-y-2 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer"
               >
                 {/* Image */}
                 <div className="relative w-full h-[360px] overflow-hidden rounded-t-3xl group">
-                  {/* Primary Image */}
                   <img
                     src={product.images?.[0] || "/placeholder.jpg"}
-                    alt={product.title}
-                    className={`object-cover w-full h-full scale-100 group-hover:scale-110 transition-all duration-500 ease-in-out absolute inset-0 ${
-                      product.images?.[1] ? 'opacity-100 group-hover:opacity-0' : 'opacity-100'
-                    }`}
-                    loading="lazy"
+                    alt={product.name}
+                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ${product.images?.[1]
+                        ? "group-hover:opacity-0"
+                        : "opacity-100"
+                      }`}
                   />
-                  
-                  {/* Secondary Image - Shows on hover if available */}
+
                   {product.images?.[1] && (
                     <img
                       src={product.images[1]}
-                      alt={`${product.title} - Alternative view`}
-                      className="object-cover w-full h-full scale-100 group-hover:scale-110 transition-all duration-500 ease-in-out absolute inset-0 opacity-0 group-hover:opacity-100"
-                      loading="lazy"
+                      alt={`${product.name} alternate`}
+                      className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-all duration-500"
                     />
                   )}
-                  
-                  {/* Label */}
-                  {product.label && (
-                    <span className="absolute top-4 left-4 bg-blue-700 text-white text-xs font-semibold uppercase px-3 py-1 rounded-full shadow-lg z-10">
-                      {product.label}
-                    </span>
-                  )}
+
                   {/* Price */}
-                  <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 backdrop-blur-sm rounded-full px-4 py-2 font-semibold text-lg text-gray-900 shadow-md z-10">
-                    AED {product.variants?.[0]?.price || product.price || "N/A"}
+                  <div className="absolute bottom-4 right-4 bg-white bg-opacity-90 rounded-full px-4 py-2 font-semibold text-lg shadow-md">
+                    AED {getFirstVariantPrice(product)}
                   </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-col flex-grow p-5">
-                  {/* Product Name */}
-                  <h3 className="text-xl font-bold mb-2 text-gray-900 text-center">
-                    {product.name}
-                  </h3>
-                  
-                  <p className="text-sm text-gray-600 flex-grow mb-4 line-clamp-3 text-center">
+                <div className="flex flex-col flex-grow p-5 text-center">
+                  <h3 className="text-xl font-bold mb-2">{product.name}</h3>
+
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">
                     {product.description}
                   </p>
-                  
-                 
-                  
-                  {/* View Details Button */}
+
                   <button
                     onClick={(e) => handleViewDetails(e, product._id)}
-                    className="bg-black text-white py-3 rounded-full font-bold text-xs tracking-widest hover:bg-gray-900 active:scale-95 transform transition duration-150"
-                    aria-label={`View details for ${product.title}`}
+                    className="mt-auto bg-black text-white py-3 rounded-full text-xs tracking-widest font-bold hover:bg-gray-900 active:scale-95 transition"
                   >
                     VIEW DETAILS
                   </button>
@@ -165,7 +157,7 @@ const ProductFeatured = () => {
             ))}
           </div>
 
-          {/* View All Button */}
+          {/* View All */}
           {products.length > 8 && (
             <div className="text-center mt-12">
               <button
@@ -174,7 +166,7 @@ const ProductFeatured = () => {
                     ? navigate("/categories/all")
                     : navigate(`/categories/${selectedCategoryName}`)
                 }
-                className="underline uppercase text-sm tracking-widest text-gray-800 hover:text-gray-600 transition-colors duration-300"
+                className="underline uppercase text-sm tracking-widest"
               >
                 View All
               </button>

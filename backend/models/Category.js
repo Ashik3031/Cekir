@@ -7,8 +7,8 @@ const categorySchema = new Schema({
     type: String,
     required: true,
   },
-  image:{
-    type:String,
+  image: {
+    type: String,
   },
   createdAt: {
     type: Date,
@@ -20,7 +20,7 @@ const categorySchema = new Schema({
       ref: "subcategory",
     },
   ],
-});
+}, { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } });
 
 
 module.exports = mongoose.model("Category", categorySchema);

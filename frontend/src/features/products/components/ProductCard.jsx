@@ -52,7 +52,7 @@ export const ProductCard = ({
   };
 
   const mainImage = defaultImages.length > 0 ? defaultImages[0] : placeholderImage;
-  const displayPrice = typeof price === "number" ? price.toFixed(2) : "0.00";
+  const displayPrice = (typeof price === "number" ? price : parseFloat(price) || 0).toFixed(2);
 
   return (
     <motion.div

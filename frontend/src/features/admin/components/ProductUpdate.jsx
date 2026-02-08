@@ -76,6 +76,9 @@ export const ProductUpdate = () => {
 
     if (variants) {
       setVariantList(variants);
+      if (variants.length > 0) {
+        setHasVariants(true);
+      }
     }
   }, [product, variants, reset]);
 
@@ -94,32 +97,34 @@ export const ProductUpdate = () => {
   const handleVariantImageUpload = (variantIndex, e) => {
     const files = Array.from(e.target.files);
     const uploadImagesAndSet = async () => {
-      const urls = await uploadToServer(files);
-      setVariantList(prev => {
-        return prev.map((variant, index) => {
-          if (index !== variantIndex) return variant;
-
-          return {
-            ...variant,
-            images: [...(variant.images || []), ...urls]
-          };
+      try {
+        const urls = await uploadToServer(files);
+        setVariantList((prev) => {
+          return prev.map((variant, index) => {
+            if (index !== variantIndex) return variant;
+            return {
+              ...variant,
+              images: [...(variant.images || []), ...urls],
+            };
+          });
         });
-      });
+      } catch (error) {
+        console.error("Error uploading variant images:", error);
+        alert("Error uploading images");
+      }
     };
     uploadImagesAndSet();
   };
 
   const handleVariantImageRemove = (variantIndex, imageIndex) => {
-    setVariantList(prev => {
+    setVariantList((prev) => {
       return prev.map((variant, index) => {
         if (index !== variantIndex) return variant;
-
         const newImages = [...(variant.images || [])];
         newImages.splice(imageIndex, 1);
-
         return {
           ...variant,
-          images: newImages
+          images: newImages,
         };
       });
     });
@@ -485,22 +490,20 @@ export const ProductUpdate = () => {
                   <button
                     type="button"
                     onClick={() => setHasVariants(true)}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      hasVariants
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    className={`px-3 py-1 text-sm rounded-md ${hasVariants
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                   >
                     Yes
                   </button>
                   <button
                     type="button"
                     onClick={() => setHasVariants(false)}
-                    className={`px-3 py-1 text-sm rounded-md ${
-                      !hasVariants
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    className={`px-3 py-1 text-sm rounded-md ${!hasVariants
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
                   >
                     No
                   </button>
