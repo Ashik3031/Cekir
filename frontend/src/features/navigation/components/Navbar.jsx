@@ -94,7 +94,7 @@ export const Navbar = () => {
   };
 
   return (
-   <header
+    <header
       className={`${isHome ? "fixed" : "relative"} top-0 left-0 w-full z-50 transition-all duration-300 ${bgClass}`}
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
@@ -110,13 +110,13 @@ export const Navbar = () => {
               />
             </Link>
             <div className="flex flex-col justify-center">
-              <span className="text-[#3e499c] font-bold text-lg sm:text-xl md:text-2xl tracking-wide" 
-                    style={{ fontFamily: "'Playfair Display', serif" }}>
+              <span className="text-[#3e499c] font-bold text-lg sm:text-xl md:text-2xl tracking-wide"
+                style={{ fontFamily: "'Playfair Display', serif" }}>
                 Türkiye
               </span>
             </div>
           </div>
-          
+
           {/* Mobile Logo */}
           {/* Desktop Menu */}
           <nav className="hidden lg:flex gap-6 text-sm font-medium uppercase items-center">
@@ -152,72 +152,71 @@ export const Navbar = () => {
 
           {/* Right Icons */}
           <div className="hidden lg:flex items-center space-x-4">
-            <NavbarIcon icon="search" isTransparent={isTransparent} to="/search" />
             <NavbarIcon icon="heart" isTransparent={isTransparent} to="/wishlist" />
             <NavbarIcon icon="cart" isTransparent={isTransparent} to="/cart" />
 
             {/* Profile Dropdown */}
             {/* Profile Dropdown */}
-<div className="relative">
-  <button
-    onClick={() => setProfileDropdown(!profileDropdown)}
-    className="p-1"
-    aria-label="Account"
-  >
-    <svg
-      className={`w-5 h-5 ${isTransparent ? "text-white" : "text-black"}`}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-      />
-    </svg>
-  </button>
-  {profileDropdown && (
-    <div className="absolute right-0 mt-2 bg-white shadow-xl border border-gray-100 rounded-md w-44 text-sm z-50 overflow-hidden text-black">
-      {user ? (
-        <>
-          <Link
-            to="/profile"
-            className="block px-4 py-3 hover:bg-gray-100 border-b"
-            onClick={() => setProfileDropdown(false)}
-          >
-            👤 Profile
-          </Link>
-          <Link
-            to="/orders"
-            className="block px-4 py-3 hover:bg-gray-100 border-b"
-            onClick={() => setProfileDropdown(false)}
-          >
-            📦 Orders
-          </Link>
-          <button
-            onClick={() => {
-              handleLogout();
-              setProfileDropdown(false);
-            }}
-            className="w-full text-left px-4 py-3 text-red-500 hover:bg-red-100"
-          >
-            🚪 Logout
-          </button>
-        </>
-      ) : (
-        <Link
-          to="/login"
-          className="block px-4 py-3 hover:bg-gray-100"
-          onClick={() => setProfileDropdown(false)}
-        >
-          🔑 Login
-        </Link>
-      )}
-    </div>
-  )}
-</div>
+            <div className="relative">
+              <button
+                onClick={() => setProfileDropdown(!profileDropdown)}
+                className="p-1"
+                aria-label="Account"
+              >
+                <svg
+                  className={`w-5 h-5 ${isTransparent ? "text-white" : "text-black"}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </button>
+              {profileDropdown && (
+                <div className="absolute right-0 mt-2 bg-white shadow-xl border border-gray-100 rounded-md w-44 text-sm z-50 overflow-hidden text-black">
+                  {user ? (
+                    <>
+                      <Link
+                        to="/profile"
+                        className="block px-4 py-3 hover:bg-gray-100 border-b"
+                        onClick={() => setProfileDropdown(false)}
+                      >
+                        👤 Profile
+                      </Link>
+                      <Link
+                        to="/orders"
+                        className="block px-4 py-3 hover:bg-gray-100 border-b"
+                        onClick={() => setProfileDropdown(false)}
+                      >
+                        📦 Orders
+                      </Link>
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setProfileDropdown(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-red-500 hover:bg-red-100"
+                      >
+                        🚪 Logout
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      to="/login"
+                      className="block px-4 py-3 hover:bg-gray-100"
+                      onClick={() => setProfileDropdown(false)}
+                    >
+                      🔑 Login
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
 
           </div>
 
